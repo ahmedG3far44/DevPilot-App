@@ -39,7 +39,7 @@ export function generateDeployCommand(config: DeployConfig): string {
       "--env": envVars,
     };
 
-    return buildCommand("sudo ./deploy_client.sh", flags);
+    return buildCommand("sudo bash /home/dev-pilot/scripts/deploy_client.sh", flags);
   }
 
   // ------------------------------------------------------
@@ -67,7 +67,7 @@ export function generateDeployCommand(config: DeployConfig): string {
     "--typescript": typescript,
   };
 
-  return buildOrderedCommand("sudo ./deploy_server.sh", orderedFlags, optionalFlags);
+  return buildOrderedCommand("sudo bash /home/dev-pilot/scripts/deploy_server.sh", orderedFlags, optionalFlags);
 }
 
 // ------------------------------------------------------

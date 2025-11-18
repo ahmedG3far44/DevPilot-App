@@ -9,7 +9,7 @@ import {
   EyeOff,
   Loader2,
 } from "lucide-react";
-import { Navigate, useParams } from "react-router-dom";
+import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useDeploy, type DeployBodyType } from "@/context/DeployContext";
 
@@ -130,10 +130,12 @@ const PROJECT_TYPES: ProjectTypeConfig[] = [
 ];
 
 const DeploymentProjectForm: React.FC = () => {
-  const { repoName } = useParams();
-
   const { repos } = useAuth();
-  const { deploy, loading, logs, error } = useDeploy();
+  const { repoName } = useParams();
+  const { handleDeploy, isDeploying, logs, error } = useDeploy();
+
+  const navigate = useNavigate();
+
   const deployedProject = repos.find(
     (repo) =>
       repo.name.toLowerCase().trim() === repoName?.toLocaleLowerCase().trim()
@@ -158,9 +160,6 @@ const DeploymentProjectForm: React.FC = () => {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [deploymentLogs, setDeploymentLogs] = useState<string[]>([]);
-  const [isDeploying, setIsDeploying] = useState(false);
 
   const currentProjectType = PROJECT_TYPES.find(
     (pt) => pt.value === formData.projectType
@@ -308,9 +307,6 @@ const DeploymentProjectForm: React.FC = () => {
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
-    setIsSubmitting(true);
-    setIsDeploying(true);
-
     try {
       const envVarsString = getEnvVarsString();
 
@@ -329,17 +325,17 @@ const DeploymentProjectForm: React.FC = () => {
       console.log("Deploy Payload:", deployPayload);
       console.log("Environment Variables:", envVarsString);
 
-      await deploy(deployPayload);
+      await handleDeploy(deployPayload);
       setIsSubmitted(true);
+
+      // if (isSubmitted) {
+      //   return navigate(
+      //     `/project/${deployedProject.name.toLocaleLowerCase().trim()}`
+      //   );
+      // }
     } catch (error) {
       console.error("Deployment error:", error);
       setErrors({ submit: "Failed to deploy project. Please try again." });
-      setDeploymentLogs((prev) => [
-        ...prev,
-        `❌ Error: ${(error as Error).message}`,
-      ]);
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -364,7 +360,7 @@ const DeploymentProjectForm: React.FC = () => {
                     {line}
                   </div>
                 ))}
-                {isSubmitting && (
+                {isDeploying && (
                   <div className="py-1 flex items-center gap-2">
                     <Loader2 className="animate-spin" size={14} />
                     <span>Processing...</span>
@@ -714,14 +710,14 @@ const DeploymentProjectForm: React.FC = () => {
             <div className="pt-4">
               <button
                 onClick={handleSubmit}
-                disabled={isSubmitting}
+                disabled={isDeploying}
                 className={`w-full font-semibold py-3 sm:py-3.5 rounded-lg transition shadow-lg text-sm sm:text-base flex items-center justify-center gap-2 ${
-                  isSubmitting
+                  isDeploying
                     ? "bg-slate-400 cursor-not-allowed"
                     : "bg-blue-600 hover:bg-blue-700 cursor-pointer shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 active:scale-[0.98]"
                 } text-white`}
               >
-                {isSubmitting ? (
+                {isDeploying ? (
                   <>
                     <Loader2 className="animate-spin" size={18} />
                     Deploying...

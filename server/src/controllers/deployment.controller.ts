@@ -6,6 +6,18 @@ import { generateDeployCommand } from '../utils/generateCommand';
 import { Client } from 'ssh2';
 
 import Deployment from '../models/Deployment';
+import dotenv from 'dotenv'
+import Project from '../models/Project';
+
+dotenv.config()
+
+
+
+const HOST = process.env.EC2_HOST as string;
+const PASSWORD = process.env.EC2_SSH_PASSWORD as string;
+const SSH_PORT  = process.env.EC2_SSH_PORT as string;
+const USERNAME = process.env.EC2_USER as string;
+const DOMAIN = process.env.DOMAIN as string;
 
 
 export interface DeployRequest {
@@ -22,84 +34,115 @@ export interface DeployRequest {
 
 
 
-export const createDeployment = async (req: Request, res: Response) => {
-
+export const createDeployment = async (req: AuthRequest, res: Response) => {
   const parse = deploySchema.safeParse(req.body);
-
+  const user = req.user;
 
   if (!parse.success) {
     return res.status(400).json({ errors: parse.error.flatten() });
   }
 
   const data = parse.data;
-  
-  
-  console.log(data)
-  
+  const command = generateDeployCommand(data);
 
-  const command = generateDeployCommand(data)
-
-  console.log(command)
-
+  // prepare streaming response
   res.setHeader("Content-Type", "text/plain; charset=utf-8");
   res.setHeader("Transfer-Encoding", "chunked");
   res.flushHeaders();
 
-    try {
+  try {
+    // const conn = new Client();
 
-    
-      const conn = new Client();
-    
-      conn
-        .on("ready", () => {
+    // conn
+    //   .on("ready", () => {
+    //     res.write("Connected to server...\n");
 
+    //     conn.exec(`${command};`, (err, stream) => {
+    //       if (err) {
+    //         res.write("ERR: " + err.message + "\n");
+    //         res.end();
+    //         conn.end();
+    //         return;
+    //       }
 
-          res.write("Connected to server...\n");
-    
-          conn.exec(command, (err, stream) => {
-            if (err) {
-              console.log((err.message))
-              conn.end();
-              return;
-            }
-    
-            stream
-              .on("data", (chunk: Buffer) => {
-                res.write(chunk.toString()); 
-                console.log(chunk.toString())  // stdout → client
-              })
-              .stderr.on("data", (chunk: Buffer) => {
-                console.log(chunk.toString())
-                res.write("ERR: " + chunk.toString()); // stderr → client
-              });
-    
-            stream.on("close", (code: number, signal: string) => {
-              res.write(`Command finished (exit=${code}, signal=${signal})\n`);
-              res.end();
-              conn.end();
-            });
-          });
-        })
-        .on("error", (err) => {
-          res.write("SSH error: " + err.message + "\n");
-          res.end();
-        })
-        .connect({
-          host: "72.61.103.22",
-          username: "dev-pilot",
-          password: "@ahmedG3far442002",
-          port: 22,
-          tryKeyboard: false
-        });
-    } catch (err: any) {
-      // 5. Catch synchronous setup errors
-      console.error("[Deploy Error]", err);
-      res.write(`data: Failed to start deployment: ${err.message}\n\n`);
-      res.end();
-    }
+    //       stream
+    //         .on("data", (chunk: Buffer) => {
+    //           res.write(chunk.toString());
+    //         })
+    //         .stderr.on("data", (chunk: Buffer) => {
+    //           res.write("ERR: " + chunk.toString());
+    //         });
 
-    // res.status(200).json({ command})
-  };
+    //       stream.on("close", async (code: number, signal: string) => {
+    //         res.write(`Command finished (exit=${code}, signal=${signal})\n`);
+            
+    //         try {
+
+    //           // _id:string;
+    //           // name: string;
+    //           // port: number;
+    //           // description: string;
+    //           // clone_url:string;
+    //           // run_script?: string;
+    //           // build_script?: string;
+    //           // main_directory: string;
+    //           // typescript:boolean;
+    //           // type: "react" | "nest" | "express" | "next" |"static";
+    //           // envVars: "string";
+    //           // status
+    //           // signal
+    //           // params data
+    //           // comand
+    //           // userId
+
+    //           const project = {
+    //               ...data,
+    //               userId: user?.id,
+    //               command,
+    //               params: data,
+    //               exitCode: code,
+    //               signal,
+    //               status: code === 0 ? "success" : "failed",
+    //               url: `https://${data.name}.${DOMAIN}`
+    //           }
+
+    //           console.log(project)
+
+    //           await Project.create(project);
+
+    //           console.log("project info saved on db success!!")
+    //         } catch (dbErr) {
+    //           console.error("DB save error:", dbErr);
+    //           res.write("Warning: failed to save deployment log to database\n");
+    //         }
+
+    //         res.end();
+    //         conn.end();
+    //       });
+    //     });
+    //   })
+    //   .on("error", (err) => {
+    //     res.write("SSH error: " + err.message + "\n");
+    //     res.end();
+    //   })
+    //   .connect({
+    //     host: HOST,
+    //     username: USERNAME,
+    //     password: PASSWORD,
+    //     port: Number(SSH_PORT),
+    //     tryKeyboard: false,
+    //   });
+
+    console.log(command)
+    res.status(200).json(command)
+
+  } catch (err: any) {
+    console.error("[Deploy Error]", err);
+    res.write(`Failed to start deployment: ${err.message}\n`);
+    res.end();
+  }
+};
+
 
 export const getDeployments = async (req: AuthRequest, res: Response): Promise<void> => {
   try {

@@ -8,7 +8,7 @@ export const authMiddleware = async (
   next: NextFunction
 ) => {
   try {
-    const token = req.cookies?.session;
+    const token = req.cookies?.session ;
 
     if (!token) {
       return res.status(401).json({ error: "Authentication required" });

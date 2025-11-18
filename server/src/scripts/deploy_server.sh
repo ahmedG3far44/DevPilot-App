@@ -7,13 +7,12 @@
 
 # Configuration - MODIFY THESE AS NEEDED
 readonly APPS_BASE_DIR="/home/dev-pilot/apps"
-readonly WWW_BASE_DIR="/var/www"
 readonly NGINX_SITES_AVAILABLE="/etc/nginx/sites-available"
 readonly NGINX_SITES_ENABLED="/etc/nginx/sites-enabled"
 readonly DOMAIN_SUFFIX="folio.business"
 readonly MACHINE_IP="72.61.103.22"
 readonly HOSTED_ZONE_ID="Z086273229J9F273KBHFK"
-readonly CERTBOT_EMAIL="admin@folio.business"  # CHANGE THIS TO YOUR EMAIL
+readonly CERTBOT_EMAIL="admin@folio.business"
 
 # Color codes for output
 readonly RED='\033[0;31m'
@@ -81,7 +80,6 @@ EOF
 validate_inputs() {
     log_info "Validating inputs..."
     
-    # Check required parameters
     if [[ -z "$PROJECT_TYPE" ]]; then
         log_error "project-type is required"
         return 1
@@ -139,18 +137,19 @@ clone_repository() {
     
     local target_dir="${APPS_BASE_DIR}/${PROJECT_NAME}"
     
-    # Check if directory already exists
-    if [[ -d "$target_dir" ]]; then
-        log_error "Project directory already exists: $target_dir"
-        log_error "Please use a different project-name or remove the existing directory"
-        return 1
-    fi
-    
     # Create base directory if it doesn't exist
     if [[ ! -d "$APPS_BASE_DIR" ]]; then
         log_info "Creating apps base directory: $APPS_BASE_DIR"
         sudo mkdir -p "$APPS_BASE_DIR"
         sudo chown -R $USER:$USER "$APPS_BASE_DIR"
+    fi
+
+    # Handle existing directory
+    if [[ -d "$target_dir" ]]; then
+        log_warn "Project directory exists: $target_dir"
+        log_info "Cleaning and pulling latest..."
+        # We don't fail here; we update existing code to allow redeployments
+        rm -rf "$target_dir"
     fi
     
     # Clone the repository
@@ -213,17 +212,19 @@ create_env_file() {
 ###########################################
 
 install_dependencies() {
-    log_info "Installing dependencies with $PACKAGE_MANAGER..."
+    log_info "Installing ALL dependencies with $PACKAGE_MANAGER..."
+    # FIXED: Removed '--production' flag. 
+    # Building (Next/Nest) requires devDependencies (tsc, cli, etc).
     
     case "$PACKAGE_MANAGER" in
         npm)
-            npm install --production
+            npm install
             ;;
         yarn)
-            yarn install --production
+            yarn install --frozen-lockfile || yarn install
             ;;
         pnpm)
-            pnpm install --prod
+            pnpm install
             ;;
     esac
     
@@ -237,16 +238,16 @@ install_dependencies() {
 }
 
 ###########################################
-# Step 6: Build and Move Files
+# Step 6: Build
 ###########################################
 
-build_and_move_files() {
+build_project() {
     log_info "Checking if build is required..."
     
     local needs_build=false
     
-    # Check if NextJS or TypeScript
-    if [[ "$PROJECT_TYPE" == "next" ]] || [[ "$TYPESCRIPT" == "true" ]]; then
+    # Check if NextJS or TypeScript or NestJS
+    if [[ "$PROJECT_TYPE" == "next" ]] || [[ "$PROJECT_TYPE" == "nest" ]] || [[ "$TYPESCRIPT" == "true" ]]; then
         needs_build=true
     fi
     
@@ -275,29 +276,10 @@ build_and_move_files() {
         return 1
     fi
     
-    # Create www directory
-    local www_dir="${WWW_BASE_DIR}/${PROJECT_NAME}"
-    sudo mkdir -p "$www_dir"
+    # FIXED: We DO NOT move files to /var/www.
+    # Nginx is a proxy; it talks to the app running right here in the clone dir.
     
-    # Move built files
-    if [[ -d "./dist" ]]; then
-        log_info "Moving ./dist/* to $www_dir/"
-        sudo cp -r ./dist/* "$www_dir/"
-    elif [[ -d "./build" ]]; then
-        log_info "Moving ./build/* to $www_dir/"
-        sudo cp -r ./build/* "$www_dir/"
-    elif [[ -d "./.next" ]] && [[ "$PROJECT_TYPE" == "next" ]]; then
-        log_info "Moving Next.js build files to $www_dir/"
-        sudo cp -r ./.next "$www_dir/"
-        sudo cp -r ./public "$www_dir/" 2>/dev/null || true
-        sudo cp package.json "$www_dir/"
-    else
-        log_warn "No dist or build directory found, skipping file move"
-    fi
-    
-    sudo chown -R $USER:$USER "$www_dir"
-    
-    log_info "Build completed and files moved successfully"
+    log_info "Build completed successfully"
     return 0
 }
 
@@ -314,7 +296,7 @@ start_pm2_process() {
         return 1
     fi
     
-    local pm2_name="${PROJECT_NAME}:${PORT}"
+    local pm2_name="${PROJECT_NAME}"
     
     # Stop existing process if running
     pm2 delete "$pm2_name" 2>/dev/null || true
@@ -334,6 +316,7 @@ start_pm2_process() {
     esac
     
     # Start PM2 process
+    # We pass PORT env var explicitly so the app binds to it
     PORT=$PORT pm2 start "$run_command" --name "$pm2_name" --update-env
     
     if [[ $? -ne 0 ]]; then
@@ -366,12 +349,13 @@ create_dns_record() {
     # Check if record already exists
     log_info "Checking if DNS record exists for $domain..."
     
+    # Suppress output, just check existance to avoid JSON errors
     local existing_record=$(aws route53 list-resource-record-sets \
         --hosted-zone-id "$HOSTED_ZONE_ID" \
         --query "ResourceRecordSets[?Name=='${domain}.']" \
-        --output json)
+        --output text)
     
-    if [[ "$existing_record" != "[]" ]]; then
+    if [[ -n "$existing_record" ]]; then
         log_info "DNS record already exists for $domain"
         return 0
     fi
@@ -444,6 +428,7 @@ configure_nginx() {
     # Create Nginx configuration
     log_info "Creating Nginx configuration file..."
     
+    # FIXED: Added basic proxy headers and websocket support
     sudo tee "$nginx_config" > /dev/null <<EOF
 server {
     listen 80;
@@ -474,11 +459,6 @@ EOF
     log_info "Creating symbolic link..."
     sudo ln -sf "$nginx_config" "$nginx_symlink"
     
-    if [[ $? -ne 0 ]]; then
-        log_error "Failed to create symbolic link"
-        return 1
-    fi
-    
     # Test Nginx configuration
     log_info "Testing Nginx configuration..."
     sudo nginx -t
@@ -492,16 +472,6 @@ EOF
     log_info "Reloading Nginx..."
     sudo systemctl reload nginx
     
-    if [[ $? -ne 0 ]]; then
-        log_error "Failed to reload Nginx"
-        return 1
-    fi
-    
-    # Restart PM2
-    log_info "Restarting PM2 process..."
-    sudo pm2 restart "${PROJECT_NAME}:${PORT}"
-    
-    log_info "Nginx configured successfully"
     return 0
 }
 
@@ -514,6 +484,13 @@ create_ssl_certificate() {
     
     local domain="${PROJECT_NAME}.${DOMAIN_SUFFIX}"
     
+    # FIXED: Check for the python3-certbot-nginx plugin
+    if ! dpkg -l | grep -q "python3-certbot-nginx"; then
+        echo "⚠️ Certbot Nginx plugin not found. Attempting to install..."
+        sudo apt-get update >/dev/null
+        sudo apt-get install -y python3-certbot-nginx
+    fi
+    
     # Check if Certbot is installed
     if ! command -v certbot &> /dev/null; then
         log_error "Certbot is not installed. Please install it first"
@@ -523,7 +500,8 @@ create_ssl_certificate() {
     # Run Certbot
     log_info "Running Certbot for $domain..."
     
-    sudo certbot certonly --nginx \
+    # Use --nginx to auto-edit the config created in step 9
+    sudo certbot --nginx \
         -d "$domain" \
         --email "$CERTBOT_EMAIL" \
         --agree-tos \
@@ -534,16 +512,6 @@ create_ssl_certificate() {
         log_error "Failed to create SSL certificate"
         return 1
     fi
-    
-    log_info "SSL certificate created successfully"
-    
-    # Reload Nginx
-    log_info "Reloading Nginx after SSL setup..."
-    sudo systemctl reload nginx
-    
-    # Restart PM2
-    log_info "Restarting PM2 process..."
-    sudo pm2 restart "${PROJECT_NAME}:${PORT}"
     
     log_info "SSL certificate configured successfully"
     return 0
@@ -568,11 +536,11 @@ main() {
     # Step 4: Create .env file
     create_env_file || exit 1
     
-    # Step 5: Install dependencies
+    # Step 5: Install dependencies (Full install, not production-only)
     install_dependencies || exit 1
     
-    # Step 6: Build and move files
-    build_and_move_files || exit 1
+    # Step 6: Build (No moving files to /var/www)
+    build_project || exit 1
     
     # Step 7: Start PM2 process
     start_pm2_process || exit 1
@@ -597,17 +565,15 @@ main() {
     echo "Deployed URL: ${GREEN}${deployed_url}${NC}"
     echo "Project Name: ${PROJECT_NAME}"
     echo "Port: ${PORT}"
-    echo "PM2 Process: ${PROJECT_NAME}:${PORT}"
+    echo "PM2 Process: ${PROJECT_NAME}"
     echo ""
     echo "Configuration Files:"
     echo "  - Nginx Config: ${NGINX_SITES_AVAILABLE}/${PROJECT_NAME}.conf"
-    echo "  - Nginx Enabled: ${NGINX_SITES_ENABLED}/${PROJECT_NAME}.conf"
     echo "  - App Directory: ${APPS_BASE_DIR}/${PROJECT_NAME}"
     echo ""
     echo "Useful Commands:"
-    echo "  - View logs: pm2 logs ${PROJECT_NAME}:${PORT}"
-    echo "  - Restart app: pm2 restart ${PROJECT_NAME}:${PORT}"
-    echo "  - Stop app: pm2 stop ${PROJECT_NAME}:${PORT}"
+    echo "  - View logs: pm2 logs ${PROJECT_NAME}"
+    echo "  - Restart app: pm2 restart ${PROJECT_NAME}"
     echo "=========================================="
     
     return 0

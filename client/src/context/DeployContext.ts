@@ -19,17 +19,17 @@ export interface DeployBodyType{
 
 export interface DeployContextType {
     logs:string[]
-    loading:boolean;
+    isDeploying:boolean;
     error:string | null;
-    deploy:(data:DeployBodyType)=> Promise<void>;
+    handleDeploy:(data:DeployBodyType)=> Promise<void>;
     
 }
 
 export const DeployContext = createContext<DeployContextType>({
     logs:[],
-    loading:false,
+    isDeploying:false,
     error: null,
-    deploy:()=> Promise.resolve(),
+    handleDeploy:()=> Promise.resolve(),
 })  
 
 
