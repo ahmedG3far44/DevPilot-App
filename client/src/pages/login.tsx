@@ -1,6 +1,5 @@
 // import { useAuth } from "@/context/authContext";
 import LoginButton from "@/components/buttons/LoginButton";
-import Logo from "@/components/Logo";
 import { Github } from "lucide-react";
 
 const Login = () => {
@@ -13,25 +12,31 @@ const Login = () => {
       </div>
 
       <div className="relative z-10 w-full max-w-md mx-4">
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/20 p-8 transform transition-all duration-300 hover:scale-[1.02]">
-          <Logo />
+        <div className="/10 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/20 p-8 transform transition-all duration-300 hover:scale-[1.02]">
+          <div className="flex flex-col items-center justify-center gap-1 mb-6">
+            <img src="/icon.svg" width={80} height={80} />
+            <h1 className="text-xl lg:text-3xl font-bold lg:font-black text-white">
+              <span>Dev</span>
+              <span>Pilot</span>
+            </h1>
+          </div>
 
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-white mb-2">Welcome Back</h1>
-            <p className="text-gray-300 text-sm">
+            <h1 className="text-2xl lg:text-3xl font-bold text-white mb-2">
+              Welcome Back
+            </h1>
+            <p className=" text-[10px] lg:text-sm">
               Sign in to continue to your account
             </p>
           </div>
 
-          <LoginButton className="text-white font-semibold ">
-            <div className="flex items-center justify-center gap-1 bg-zinc-50/20 hover:bg-zinc-50/30 duration-300 p-2 rounded-md  ">
-              <Github className="w-5 h-5" />
-              <span>Continue with GitHub</span>
-            </div>
+          <LoginButton className="w-full text-white text-sm">
+            <Github className="w-5 h-5" />
+            <span>Continue with GitHub</span>
           </LoginButton>
 
           <div className="mt-8 text-center">
-            <p className="text-gray-400 text-xs">
+            <p className=" text-xs">
               By continuing, you agree to our{" "}
               <a
                 href="#"
@@ -45,7 +50,7 @@ const Login = () => {
 
         {/* Extra decoration */}
         <div className="text-center mt-6">
-          <p className="text-gray-400 text-sm">
+          <p className=" text-sm">
             Don't have an account?{" "}
             <a
               href="#"

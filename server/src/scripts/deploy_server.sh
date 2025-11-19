@@ -1,8 +1,21 @@
 #!/bin/bash
 
+set -euo pipefail
+
+export AWS_PROFILE=default
+export AWS_SHARED_CREDENTIALS_FILE="/home/dev-pilot/.aws/credentials"
+
+echo "🔍 Checking AWS credentials..."
+if ! aws sts get-caller-identity >/dev/null 2>&1; then
+  echo "❌ AWS credentials not found or invalid. Please run 'aws configure' for this user."
+  exit 1
+fi
+echo "✅ AWS credentials verified."
+
 ###########################################
 # AUTO DEPLOY SERVER APPS SCRIPT
 # Supports: Express.js, NestJS, NextJS
+# Features: Auto-Port Assignment, Git Pull/Clone, SSL, DNS
 ###########################################
 
 # Configuration - MODIFY THESE AS NEEDED
@@ -12,7 +25,8 @@ readonly NGINX_SITES_ENABLED="/etc/nginx/sites-enabled"
 readonly DOMAIN_SUFFIX="folio.business"
 readonly MACHINE_IP="72.61.103.22"
 readonly HOSTED_ZONE_ID="Z086273229J9F273KBHFK"
-readonly CERTBOT_EMAIL="admin@folio.business"
+readonly CERTBOT_EMAIL="ahmedjaafarbadri@gmail.com"
+readonly START_PORT=3000
 
 # Color codes for output
 readonly RED='\033[0;31m'
@@ -23,7 +37,7 @@ readonly NC='\033[0m' # No Color
 # Global variables
 PROJECT_TYPE=""
 MAIN_DIR=""
-PORT=""
+PORT="" # calculated automatically
 RUN_SCRIPT=""
 ENV_VARS=""
 PACKAGE_MANAGER="npm"
@@ -53,7 +67,6 @@ Usage: $0 [OPTIONS]
 
 Required Options:
     --project-type      Type of project (express|nest|next)
-    --port              Port number for the application
     --clone-url         Git repository URL to clone
     --project-name      Unique project name (will be used in URL)
 
@@ -66,10 +79,11 @@ Optional Options:
     -h, --help          Show this help message
 
 Example:
-    $0 --project-type express --port 3000 --clone-url https://github.com/user/repo.git \\
+    $0 --project-type express --clone-url https://github.com/user/repo.git \\
        --project-name myapp --env-vars "NODE_ENV=production,DB_HOST=localhost" \\
        --package-manager npm --typescript true --run-script start
 
+Note: Port is assigned automatically starting from $START_PORT.
 EOF
 }
 
@@ -87,16 +101,6 @@ validate_inputs() {
     
     if [[ ! "$PROJECT_TYPE" =~ ^(express|nest|next)$ ]]; then
         log_error "Invalid project-type. Must be: express, nest, or next"
-        return 1
-    fi
-    
-    if [[ -z "$PORT" ]]; then
-        log_error "port is required"
-        return 1
-    fi
-    
-    if ! [[ "$PORT" =~ ^[0-9]+$ ]] || [ "$PORT" -lt 1 ] || [ "$PORT" -gt 65535 ]; then
-        log_error "Invalid port number. Must be between 1 and 65535"
         return 1
     fi
     
@@ -129,11 +133,49 @@ validate_inputs() {
 }
 
 ###########################################
-# Step 2: Clone Repository
+# Step 2: Assign Port
+###########################################
+
+assign_port() {
+    log_info "Assigning port..."
+
+    local nginx_config="${NGINX_SITES_AVAILABLE}/${PROJECT_NAME}.conf"
+
+    # 1. Check if app exists to reuse the port
+    if [[ -f "$nginx_config" ]]; then
+        # Extract port from existing nginx config
+        # Looks for: proxy_pass http://localhost:3000;
+        local existing_port=$(grep -oP "proxy_pass http://localhost:\K\d+" "$nginx_config")
+        
+        if [[ -n "$existing_port" ]]; then
+            PORT=$existing_port
+            log_info "Existing project detected. Reusing assigned port: $PORT"
+            return 0
+        fi
+    fi
+
+    # 2. Find new available port
+    local port=$START_PORT
+    while true; do
+        # Check if port is mentioned in any enabled Nginx site
+        # We use grep to scan all config files in sites-enabled to see if the port is taken
+        if ! grep -r "localhost:$port" "$NGINX_SITES_ENABLED" > /dev/null 2>&1; then
+            PORT=$port
+            break
+        fi
+        ((port++))
+    done
+
+    log_info "New port assigned: $PORT"
+    return 0
+}
+
+###########################################
+# Step 3: Clone or Pull Repository
 ###########################################
 
 clone_repository() {
-    log_info "Cloning repository..."
+    log_info "Preparing repository..."
     
     local target_dir="${APPS_BASE_DIR}/${PROJECT_NAME}"
     
@@ -144,26 +186,37 @@ clone_repository() {
         sudo chown -R $USER:$USER "$APPS_BASE_DIR"
     fi
 
-    # Handle existing directory
+    # Check if directory exists
     if [[ -d "$target_dir" ]]; then
-        log_warn "Project directory exists: $target_dir"
-        log_info "Cleaning and pulling latest..."
-        # We don't fail here; we update existing code to allow redeployments
-        rm -rf "$target_dir"
+        log_warn "Project directory already exists: $target_dir"
+        log_info "Performing 'git pull' to fetch new changes..."
+        
+        cd "$target_dir" || { log_error "Could not enter directory $target_dir"; return 1; }
+        
+        # Pull latest changes
+        if ! git pull; then
+            log_error "Failed to pull latest changes. Check git status."
+            return 1
+        fi
+        
+        log_info "Successfully pulled latest changes."
+        cd - > /dev/null
+    else
+        log_info "Directory does not exist. Cloning fresh repository..."
+        
+        if ! git clone "$CLONE_URL" "$target_dir"; then
+            log_error "Failed to clone repository"
+            return 1
+        fi
+        
+        log_info "Repository cloned successfully to: $target_dir"
     fi
     
-    # Clone the repository
-    if ! git clone "$CLONE_URL" "$target_dir"; then
-        log_error "Failed to clone repository"
-        return 1
-    fi
-    
-    log_info "Repository cloned successfully to: $target_dir"
     return 0
 }
 
 ###########################################
-# Step 3: Navigate to Main Directory
+# Step 4: Navigate to Main Directory
 ###########################################
 
 navigate_to_main_dir() {
@@ -182,39 +235,38 @@ navigate_to_main_dir() {
 }
 
 ###########################################
-# Step 4: Create .env File
+# Step 5: Create .env File
 ###########################################
 
 create_env_file() {
     log_info "Creating .env file..."
     
-    if [[ -z "$ENV_VARS" ]]; then
-        log_info "No environment variables provided, skipping .env creation"
-        return 0
-    fi
-    
-    # Create or overwrite .env file
+    # Always create/overwrite .env
     > .env
+
+    # 1. Write PORT as the first variable
+    echo "PORT=$PORT" >> .env
+    log_info "Added: PORT=$PORT"
     
-    # Parse and write environment variables
-    IFS=',' read -ra ENV_ARRAY <<< "$ENV_VARS"
-    for env_pair in "${ENV_ARRAY[@]}"; do
-        echo "$env_pair" >> .env
-        log_info "Added: $env_pair"
-    done
+    # 2. Write other user-provided variables
+    if [[ -n "$ENV_VARS" ]]; then
+        IFS=',' read -ra ENV_ARRAY <<< "$ENV_VARS"
+        for env_pair in "${ENV_ARRAY[@]}"; do
+            echo "$env_pair" >> .env
+            log_info "Added: $env_pair"
+        done
+    fi
     
     log_info ".env file created successfully"
     return 0
 }
 
 ###########################################
-# Step 5: Install Dependencies
+# Step 6: Install Dependencies
 ###########################################
 
 install_dependencies() {
-    log_info "Installing ALL dependencies with $PACKAGE_MANAGER..."
-    # FIXED: Removed '--production' flag. 
-    # Building (Next/Nest) requires devDependencies (tsc, cli, etc).
+    log_info "Installing dependencies with $PACKAGE_MANAGER..."
     
     case "$PACKAGE_MANAGER" in
         npm)
@@ -238,7 +290,7 @@ install_dependencies() {
 }
 
 ###########################################
-# Step 6: Build
+# Step 7: Build
 ###########################################
 
 build_project() {
@@ -246,7 +298,6 @@ build_project() {
     
     local needs_build=false
     
-    # Check if NextJS or TypeScript or NestJS
     if [[ "$PROJECT_TYPE" == "next" ]] || [[ "$PROJECT_TYPE" == "nest" ]] || [[ "$TYPESCRIPT" == "true" ]]; then
         needs_build=true
     fi
@@ -258,7 +309,6 @@ build_project() {
     
     log_info "Building application..."
     
-    # Build the application
     case "$PACKAGE_MANAGER" in
         npm)
             npm run build
@@ -276,32 +326,32 @@ build_project() {
         return 1
     fi
     
-    # FIXED: We DO NOT move files to /var/www.
-    # Nginx is a proxy; it talks to the app running right here in the clone dir.
-    
     log_info "Build completed successfully"
     return 0
 }
 
 ###########################################
-# Step 7: Start PM2 Process
+# Step 8: Start PM2 Process
 ###########################################
 
 start_pm2_process() {
     log_info "Starting PM2 process..."
     
-    # Check if PM2 is installed
+    # Explicitly navigate to app directory before starting
+    local target_dir="${APPS_BASE_DIR}/${PROJECT_NAME}/${MAIN_DIR}"
+    log_info "Navigating to app directory for PM2: $target_dir"
+    cd "$target_dir" || { log_error "Could not enter directory $target_dir"; return 1; }
+
     if ! command -v pm2 &> /dev/null; then
-        log_error "PM2 is not installed. Please install it first: npm install -g pm2"
+        log_error "PM2 is not installed. Please install: npm install -g pm2"
         return 1
     fi
     
     local pm2_name="${PROJECT_NAME}"
     
-    # Stop existing process if running
+    # Stop existing process if running (to ensure new env vars are loaded)
     pm2 delete "$pm2_name" 2>/dev/null || true
     
-    # Prepare the run command
     local run_command=""
     case "$PACKAGE_MANAGER" in
         npm)
@@ -317,22 +367,24 @@ start_pm2_process() {
     
     # Start PM2 process
     # We pass PORT env var explicitly so the app binds to it
-    PORT=$PORT pm2 start "$run_command" --name "$pm2_name" --update-env
+    sudo pm2 start --name "$pm2_name"  "$run_command" 
     
     if [[ $? -ne 0 ]]; then
         log_error "Failed to start PM2 process"
         return 1
     fi
     
-    # Save PM2 process list
-    pm2 save
+    # Save PM2 list and run startup commands
+    log_info "Saving PM2 process list and enabling startup..."
+  
+    sudo pm2 startup && sudo pm2 save
     
-    log_info "PM2 process started successfully: $pm2_name"
+    log_info "PM2 process started successfully: $pm2_name on port $PORT"
     return 0
 }
 
 ###########################################
-# Step 8: Create DNS Record
+# Step 9: Create DNS Record
 ###########################################
 
 create_dns_record() {
@@ -340,29 +392,35 @@ create_dns_record() {
     
     local domain="${PROJECT_NAME}.${DOMAIN_SUFFIX}"
     
-    # Check if AWS CLI is installed
     if ! command -v aws &> /dev/null; then
-        log_error "AWS CLI is not installed. Please install it first"
+        log_error "AWS CLI is not installed."
         return 1
     fi
     
-    # Check if record already exists
-    log_info "Checking if DNS record exists for $domain..."
+    # 1. Check if record already exists
+    # We capture stderr (2>&1) to catch credential errors
+    log_info "Verifying AWS connection and checking existing records..."
     
-    # Suppress output, just check existance to avoid JSON errors
-    local existing_record=$(aws route53 list-resource-record-sets \
+    local existing_record
+    if ! existing_record=$(aws route53 list-resource-record-sets \
         --hosted-zone-id "$HOSTED_ZONE_ID" \
         --query "ResourceRecordSets[?Name=='${domain}.']" \
-        --output text)
+        --output text 2>&1); then
+        
+        log_error "Failed to connect to AWS. Error details:"
+        echo "$existing_record"
+        log_error "Please run 'aws configure' to set your credentials."
+        return 1
+    fi
     
     if [[ -n "$existing_record" ]]; then
-        log_info "DNS record already exists for $domain"
+        log_info "DNS record already exists for $domain. Skipping creation."
         return 0
     fi
     
+    # 2. Create new record
     log_info "Creating new DNS record for $domain..."
     
-    # Create change batch JSON
     local change_batch=$(cat <<EOF
 {
   "Changes": [{
@@ -378,34 +436,43 @@ create_dns_record() {
 EOF
 )
     
-    # Create the DNS record
-    local change_info=$(aws route53 change-resource-record-sets \
+    local change_info
+    if ! change_info=$(aws route53 change-resource-record-sets \
         --hosted-zone-id "$HOSTED_ZONE_ID" \
         --change-batch "$change_batch" \
-        --output json)
-    
-    if [[ $? -ne 0 ]]; then
-        log_error "Failed to create DNS record"
+        --output json 2>&1); then
+        
+        log_error "Failed to create DNS record. Error details:"
+        echo "$change_info"
         return 1
     fi
     
+    # 3. Extract Change ID safely
     local change_id=$(echo "$change_info" | grep -o '"Id": "[^"]*"' | cut -d'"' -f4)
     
-    log_info "DNS record created. Waiting for sync..."
+    if [[ -z "$change_id" ]]; then
+        log_error "Record created but failed to extract Change ID. Cannot wait for sync."
+        echo "Output was: $change_info"
+        return 1
+    fi
     
-    # Wait for the change to be synced
+    log_info "DNS record created (ID: $change_id). Waiting for sync..."
+    
+    # 4. Wait for sync
     local max_attempts=30
     local attempt=0
-    
     while [[ $attempt -lt $max_attempts ]]; do
-        local status=$(aws route53 get-change --id "$change_id" --query "ChangeInfo.Status" --output text)
-        
-        if [[ "$status" == "INSYNC" ]]; then
-            log_info "DNS record synced successfully"
-            return 0
+        local status
+        if ! status=$(aws route53 get-change --id "$change_id" --query "ChangeInfo.Status" --output text 2>&1); then
+            log_warn "Error checking status (Attempt $((attempt+1))): $status"
+        else
+            if [[ "$status" == "INSYNC" ]]; then
+                log_info "DNS record synced successfully"
+                return 0
+            fi
+            log_info "DNS status: $status. Waiting... ($((attempt+1))/$max_attempts)"
         fi
         
-        log_info "DNS status: $status. Waiting... ($((attempt+1))/$max_attempts)"
         sleep 10
         ((attempt++))
     done
@@ -415,7 +482,7 @@ EOF
 }
 
 ###########################################
-# Step 9: Configure Nginx
+# Step 10: Configure Nginx
 ###########################################
 
 configure_nginx() {
@@ -423,12 +490,10 @@ configure_nginx() {
     
     local domain="${PROJECT_NAME}.${DOMAIN_SUFFIX}"
     local nginx_config="${NGINX_SITES_AVAILABLE}/${PROJECT_NAME}.conf"
-    local nginx_symlink="${NGINX_SITES_ENABLED}/${PROJECT_NAME}.conf"
+    local nginx_symlink="${NGINX_SITES_ENABLED}"
     
-    # Create Nginx configuration
-    log_info "Creating Nginx configuration file..."
+    log_info "Creating Nginx configuration file for port $PORT..."
     
-    # FIXED: Added basic proxy headers and websocket support
     sudo tee "$nginx_config" > /dev/null <<EOF
 server {
     listen 80;
@@ -455,28 +520,20 @@ EOF
         return 1
     fi
     
-    # Create symbolic link
-    log_info "Creating symbolic link..."
     sudo ln -sf "$nginx_config" "$nginx_symlink"
     
-    # Test Nginx configuration
-    log_info "Testing Nginx configuration..."
     sudo nginx -t
-    
     if [[ $? -ne 0 ]]; then
         log_error "Nginx configuration test failed"
         return 1
     fi
     
-    # Reload Nginx
-    log_info "Reloading Nginx..."
     sudo systemctl reload nginx
-    
     return 0
 }
 
 ###########################################
-# Step 10: Create SSL Certificate
+# Step 11: Create SSL Certificate
 ###########################################
 
 create_ssl_certificate() {
@@ -484,23 +541,17 @@ create_ssl_certificate() {
     
     local domain="${PROJECT_NAME}.${DOMAIN_SUFFIX}"
     
-    # FIXED: Check for the python3-certbot-nginx plugin
     if ! dpkg -l | grep -q "python3-certbot-nginx"; then
         echo "⚠️ Certbot Nginx plugin not found. Attempting to install..."
         sudo apt-get update >/dev/null
         sudo apt-get install -y python3-certbot-nginx
     fi
     
-    # Check if Certbot is installed
     if ! command -v certbot &> /dev/null; then
-        log_error "Certbot is not installed. Please install it first"
+        log_error "Certbot is not installed."
         return 1
     fi
     
-    # Run Certbot
-    log_info "Running Certbot for $domain..."
-    
-    # Use --nginx to auto-edit the config created in step 9
     sudo certbot --nginx \
         -d "$domain" \
         --email "$CERTBOT_EMAIL" \
@@ -524,37 +575,21 @@ create_ssl_certificate() {
 main() {
     log_info "Starting auto deployment process..."
     
-    # Step 1: Validate inputs
     validate_inputs || exit 1
     
-    # Step 2: Clone repository
+    # NEW: Assign Port
+    assign_port || exit 1
+    
     clone_repository || exit 1
-    
-    # Step 3: Navigate to main directory
     navigate_to_main_dir || exit 1
-    
-    # Step 4: Create .env file
     create_env_file || exit 1
-    
-    # Step 5: Install dependencies (Full install, not production-only)
     install_dependencies || exit 1
-    
-    # Step 6: Build (No moving files to /var/www)
     build_project || exit 1
-    
-    # Step 7: Start PM2 process
     start_pm2_process || exit 1
-    
-    # Step 8: Create DNS record
     create_dns_record || exit 1
-    
-    # Step 9: Configure Nginx
     configure_nginx || exit 1
-    
-    # Step 10: Create SSL certificate
     create_ssl_certificate || exit 1
     
-    # Final output
     local deployed_url="https://${PROJECT_NAME}.${DOMAIN_SUFFIX}"
     
     echo ""
@@ -567,14 +602,6 @@ main() {
     echo "Port: ${PORT}"
     echo "PM2 Process: ${PROJECT_NAME}"
     echo ""
-    echo "Configuration Files:"
-    echo "  - Nginx Config: ${NGINX_SITES_AVAILABLE}/${PROJECT_NAME}.conf"
-    echo "  - App Directory: ${APPS_BASE_DIR}/${PROJECT_NAME}"
-    echo ""
-    echo "Useful Commands:"
-    echo "  - View logs: pm2 logs ${PROJECT_NAME}"
-    echo "  - Restart app: pm2 restart ${PROJECT_NAME}"
-    echo "=========================================="
     
     return 0
 }
@@ -594,10 +621,7 @@ parse_arguments() {
                 MAIN_DIR="$2"
                 shift 2
                 ;;
-            --port)
-                PORT="$2"
-                shift 2
-                ;;
+            # --port flag removed
             --run-script)
                 RUN_SCRIPT="$2"
                 shift 2

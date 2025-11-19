@@ -9,8 +9,8 @@ const router = Router()
 
 
 
-router.use("/", authRouter)
-router.use("/", projectRouter)
+router.use("/auth", authRouter)
+router.use("/project", projectRouter)
 router.use("/deploy", deployRouter)
 
 export default router;

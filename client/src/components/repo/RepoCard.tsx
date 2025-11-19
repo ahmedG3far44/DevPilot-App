@@ -16,9 +16,10 @@ import {
   ExternalLink,
   GitBranch,
   Lock,
+  LucideExternalLink,
 } from "lucide-react";
 import type { RepositoryCardData } from "@/types/repository";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 interface RepoCardProps {
   repo: RepositoryCardData;
@@ -27,6 +28,7 @@ interface RepoCardProps {
 }
 
 export function RepoCard({ repo }: RepoCardProps) {
+  const navigate = useNavigate();
   // Format size from KB to human-readable
   const formatSize = (sizeInKB: number): string => {
     if (sizeInKB < 1024) return `${sizeInKB} KB`;
@@ -35,7 +37,7 @@ export function RepoCard({ repo }: RepoCardProps) {
   };
 
   return (
-    <Card className="hover:shadow-lg transition-shadow duration-200 border border-zinc-300">
+    <Card className="hover:shadow-lg transition-shadow duration-200 border border-secondary">
       <CardHeader>
         <div className="flex items-start justify-between">
           <div className="space-y-1 flex-1">
@@ -111,20 +113,23 @@ export function RepoCard({ repo }: RepoCardProps) {
         <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
           <GitBranch className="w-4 h-4 text-muted-foreground" />
           <code className="text-xs flex-1 truncate">{repo.clone_url}</code>
-          <Link
+          {/* <Link
             to={`/project/${repo.name.toLocaleLowerCase().trim()}`}
             className="h-6 px-2"
           >
-            Deploy
-          </Link>
+            <LucideExternalLink size={20} />
+          </Link> */}
         </div>
 
-        <Link
-          to={`/deploy/${repo.name?.toLocaleLowerCase().trim()}`}
-          className="w-full py-2 px-4 rounedd-md border border-zinc-300"
+        <Button
+          variant={"outline"}
+          onClick={() =>
+            navigate(`/deploy/${repo.name?.toLocaleLowerCase().trim()}`)
+          }
+          className="w-full py-2 px-4 rounedd-md border border-muted cursor-pointer hover:opacity-65 duration-300"
         >
           Deploy Repository
-        </Link>
+        </Button>
       </CardContent>
     </Card>
   );

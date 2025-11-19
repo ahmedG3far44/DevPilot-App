@@ -1,5 +1,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { Button } from "../ui/button";
+import { LucideLogOut } from "lucide-react";
 
 const LogoutButton = () => {
   const { logout, loading } = useAuth();
@@ -15,13 +17,17 @@ const LogoutButton = () => {
       });
   };
   return (
-    <button
+    <Button
       disabled={loading}
       onClick={handleLogout}
-      className="px-4 py-1 rounded-md  border text-violet-500 border-violet-700 cursor-pointer hover:opacity-65 duration-300"
+      className="cursor-pointer hover:opacity-70 duration-300 "
+      variant={"outline"}
     >
+      <span>
+        <LucideLogOut size={15} />{" "}
+      </span>
       {loading ? "logging out..." : "logout"}
-    </button>
+    </Button>
   );
 };
 

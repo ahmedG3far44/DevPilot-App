@@ -11,7 +11,7 @@ const AuthProvider: FC<PropsWithChildren> = ({ children }) => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [repos, setRepos] = useState<RepositoryCardData[]>([]);
-  
+
   const isAdmin = user?.isAdmin || false;
   const isAuthenticated = user ? true : false;
 
@@ -40,7 +40,7 @@ const AuthProvider: FC<PropsWithChildren> = ({ children }) => {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch(`${BASE_URL}/user/repos`, {
+      const response = await fetch(`${BASE_URL}/project/user/repos`, {
         credentials: "include",
       });
       const repos = await response.json();

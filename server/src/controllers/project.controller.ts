@@ -5,8 +5,13 @@ import Project from "../models/Project"
 
 export const getProjectsList = async(req:AuthRequest, res:Response) =>{
     try{
-        const projectsList = await Project.find();
+        const user = req.user;
 
+        if(!user)throw new Error("user not found !!")
+
+        const projectsList = await Project.find({username:"ahmedG3far44"});
+
+        
         res.status(200).json({data:projectsList, message:"getting projects list successfully", success:true})
     }catch(error){
         res.status(500).json({data:"[Error]:internal server error", message:(error as Error).message, success:false})

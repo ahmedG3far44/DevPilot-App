@@ -3,8 +3,6 @@ import { DeployContext, type DeployBodyType } from "./DeployContext";
 
 const BASE_URL = import.meta.env.VITE_BASE_URL as string;
 
-
-
 const DeployProvider: FC<PropsWithChildren> = ({ children }) => {
   const [logs, setLogs] = useState<string[]>([]);
   const [isDeploying, setIsDeploying] = useState<boolean>(false);
@@ -107,7 +105,7 @@ export default DeployProvider;
 //         className={`px-4 py-2 rounded font-bold text-white transition
 //           ${
 //             isDeploying
-//               ? "bg-gray-500 cursor-not-allowed"
+//               ? "0 cursor-not-allowed"
 //               : "bg-blue-600 hover:bg-blue-700"
 //           }`}
 //       >
@@ -122,14 +120,14 @@ export default DeployProvider;
 //             <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
 //             <div className="w-3 h-3 rounded-full bg-green-500"></div>
 //           </div>
-//           <span className="text-gray-400">deploy_logs.sh</span>
+//           <span className="">deploy_logs.sh</span>
 //         </div>
 
 //         <div className="h-64 overflow-y-auto p-4 text-green-400 space-y-1">
 //           {logs.map((line, index) => (
 //             // Using index as key is okay here since we only append
 //             <div key={index} className="break-all">
-//               <span className="text-gray-500 mr-2">$</span>
+//               <span className=" mr-2">$</span>
 //               {line}
 //             </div>
 //           ))}

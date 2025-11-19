@@ -7,6 +7,7 @@ import ProjectMonitor from "./components/project/ProjectMonitor";
 import DeploymentProjectForm from "./components/project/DeploymentProjectForm";
 import UserPage from "./pages/user";
 import ProtectedRoute from "./components/ProtectedRoute";
+import ProjectsPage from "./pages/projects";
 
 const App = () => {
   return (
@@ -18,7 +19,8 @@ const App = () => {
         <Route path="/" element={<ProtectedRoute />}>
           <Route path="user" element={<UserPage />} />
           <Route path="deploy/:repoName" element={<DeploymentProjectForm />} />
-          <Route path="project/:projectName" element={<ProjectMonitor />} />
+          <Route path="projects" element={<ProjectsPage />} />
+          <Route path="project/:projectId" element={<ProjectMonitor />} />
         </Route>
         // protected admin routes
         <Route path="dashboard" element={<Dashboard />}>

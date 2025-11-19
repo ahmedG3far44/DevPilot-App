@@ -1,31 +1,25 @@
 import { Schema, Document, model } from "mongoose";
 
 
-export interface IEnv {
-    _id?:string;
-  key: string;
-  value: string;
-}
 
 export interface IProject extends Document {
   _id: string;
   name: string;
   port: number;
-  description: string;
   clone_url: string;
   run_script?: string;
   build_script?: string;
-  main_directory: string;
+  main_dir: string;
   envVars:string;
-  entry_file: string;
   typescript: boolean;
   type: "react" | "nest" | "express" | "next" | "static";
-  status?: string;
+  status?: "pending" | "failed" | "active";
   signal?: string;
   params?: Record<string, any>;
   command?: string;
-  userId?: string;
-  url:string
+  username?: string;
+  url:string;
+  pkg:PackageManagerType
 }
 
 export enum ProjectType {
@@ -35,21 +29,22 @@ export enum ProjectType {
   NEXT = "next",
   STATIC = "static"
 }
+export enum PackageManagerType {
+  NPM = "npm",
+  PNPM = "pnpm",
+  YARN = "yarn",
+  BUN = "bun",
+}
 
-// const envSchema = new Schema<IEnv>({
-//   key: { type: String, required: true },
-//   value: { type: String, required: true },
-// });
 
 const projectSchema = new Schema<IProject>(
   {
     name: { type: String, required: true },
-    description: { type: String, required: true },
     clone_url: { type: String, required: true },
     run_script: { type: String },
     build_script: { type: String },
     port: { type: Number, required: true, default: 3000 },
-    main_directory: { type: String, required: true },
+    main_dir: { type: String, required: true },
     type: {
       type: String,
       enum: Object.values(ProjectType),
@@ -62,10 +57,11 @@ const projectSchema = new Schema<IProject>(
     },
     envVars: { type: String },
     status: { type: String },
-    signal: { type: String },
     params: { type: Schema.Types.Mixed },  
-    userId: { type: Schema.Types.ObjectId, ref: "User" }  ,
-    url:{type:String, required:true}          
+    username: { type: String, required:true }  ,
+    url:{type:String, required:true} ,  
+    command:{type:String},
+    pkg:{type:String, enum:Object.values(PackageManagerType), default:PackageManagerType.NPM, required:true}
   },
   { timestamps: true }
 );
@@ -99,3 +95,4 @@ export default Project;
 //   --env-vars "PORT=5555  GEMINI_API_KEY=AIzaSyCc7PU_RahGiT61Vx4VzjkQ3h3o2yujSv8" \
 //   --package-manager npm \ 
 //   --typescript true;
+

@@ -12,6 +12,9 @@ import {
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useDeploy, type DeployBodyType } from "@/context/DeployContext";
+import DeploymentLogs from "./DeploymentLogs";
+import ErrorMessage from "../ui/error";
+import { Button } from "../ui/button";
 
 interface EnvVar {
   id: string;
@@ -41,6 +44,7 @@ interface PackageManager {
 }
 
 interface ProjectTypeConfig {
+  image: string;
   value: ProjectType;
   label: string;
   description: string;
@@ -83,6 +87,7 @@ const PACKAGE_MANAGERS: PackageManager[] = [
 
 const PROJECT_TYPES: ProjectTypeConfig[] = [
   {
+    image: "/images/nextjs.png",
     value: "nextjs",
     label: "Next.js",
     description: "React framework with SSR/SSG",
@@ -92,6 +97,7 @@ const PROJECT_TYPES: ProjectTypeConfig[] = [
     defaultBuildScript: "npm run build",
   },
   {
+    image: "/images/reactjs.png",
     value: "react",
     label: "React",
     description: "Client-side React application",
@@ -101,6 +107,7 @@ const PROJECT_TYPES: ProjectTypeConfig[] = [
     defaultBuildScript: "npm run build",
   },
   {
+    image: "/images/static.png",
     value: "static",
     label: "Static Site",
     description: "HTML/CSS/JS static files",
@@ -110,6 +117,7 @@ const PROJECT_TYPES: ProjectTypeConfig[] = [
     defaultBuildScript: "",
   },
   {
+    image: "/images/expressjs.png",
     value: "express",
     label: "Express.js",
     description: "Node.js web framework",
@@ -119,6 +127,7 @@ const PROJECT_TYPES: ProjectTypeConfig[] = [
     defaultBuildScript: "",
   },
   {
+    image: "/images/nestjs.png",
     value: "nestjs",
     label: "NestJS",
     description: "Progressive Node.js framework",
@@ -143,10 +152,7 @@ const DeploymentProjectForm: React.FC = () => {
 
   if (!deployedProject) return <Navigate to={"/"} />;
 
-  if (error)
-    return (
-      <div className="p-8 text-red-500 bg-red-200 rounded-2xl ">{error}</div>
-    );
+  if (error) return <ErrorMessage message={error} />;
 
   const [formData, setFormData] = useState<ProjectFormData>({
     projectType: "nextjs",
@@ -165,7 +171,6 @@ const DeploymentProjectForm: React.FC = () => {
     (pt) => pt.value === formData.projectType
   )!;
 
-  // Update scripts when project type or package manager changes
   useEffect(() => {
     const pm = PACKAGE_MANAGERS.find(
       (p) => p.value === formData.packageManager
@@ -325,72 +330,43 @@ const DeploymentProjectForm: React.FC = () => {
       console.log("Deploy Payload:", deployPayload);
       console.log("Environment Variables:", envVarsString);
 
-      await handleDeploy(deployPayload);
-      setIsSubmitted(true);
+      await handleDeploy(deployPayload).then(() => {
+        setIsSubmitted(true);
+      });
 
-      // if (isSubmitted) {
-      //   return navigate(
-      //     `/project/${deployedProject.name.toLocaleLowerCase().trim()}`
-      //   );
-      // }
+      if (isSubmitted) {
+        return navigate(`/project/${deployedProject.id}`);
+      }
     } catch (error) {
       console.error("Deployment error:", error);
       setErrors({ submit: "Failed to deploy project. Please try again." });
     }
   };
 
-  if (isDeploying) {
+  if (!isDeploying)
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 py-4 sm:py-6 px-3 sm:px-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-slate-950 rounded-xl shadow-2xl overflow-hidden border border-slate-700">
-            <div className="p-3 sm:p-4 bg-slate-900 border-b border-slate-700 flex items-center gap-3">
-              <Loader2
-                className="animate-spin text-blue-400 flex-shrink-0"
-                size={20}
-              />
-              <h2 className="text-base sm:text-lg font-semibold text-white">
-                Deployment Logs
-              </h2>
-            </div>
-            <div className="p-4 sm:p-6 max-h-[70vh] overflow-y-auto">
-              <pre className="font-mono text-xs sm:text-sm text-green-400 whitespace-pre-wrap break-words">
-                {logs.map((line, i) => (
-                  <div key={i} className="py-1">
-                    {line}
-                  </div>
-                ))}
-                {isDeploying && (
-                  <div className="py-1 flex items-center gap-2">
-                    <Loader2 className="animate-spin" size={14} />
-                    <span>Processing...</span>
-                  </div>
-                )}
-              </pre>
-            </div>
-          </div>
-        </div>
-      </div>
+      <DeploymentLogs
+        logs={logs}
+        isDeploying={isDeploying}
+        projectName={deployedProject.name}
+      />
     );
-  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 py-4 sm:py-6 lg:py-12 px-3 sm:px-4 lg:px-6">
+    <div className="min-h-screen    py-4 sm:py-6 lg:py-12 px-3 sm:px-4 lg:px-6">
       <div className="max-w-5xl mx-auto">
-        <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 lg:p-8">
-          {/* Header */}
+        <div className=" rounded-xl shadow-lg p-4 sm:p-6 lg:p-8">
           <div className="mb-6 sm:mb-8">
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 mb-2">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold  mb-2">
               Deploy New Project
             </h1>
-            <p className="text-sm sm:text-base text-slate-600">
+            <p className="text-sm sm:text-base ">
               Configure your deployment settings
             </p>
           </div>
 
-          {/* Success Message */}
           {isSubmitted && (
-            <div className="mb-6 p-3 sm:p-4 bg-green-50 border border-green-200 rounded-lg flex items-start gap-3">
+            <div className="mb-6 p-3 sm:p-4 bg-green-500 border border-green-200 rounded-lg flex items-start gap-3">
               <CheckCircle2
                 className="text-green-600 flex-shrink-0 mt-0.5"
                 size={20}
@@ -415,34 +391,34 @@ const DeploymentProjectForm: React.FC = () => {
           )}
 
           {/* Repository Information */}
-          <div className="mb-6 bg-slate-50 p-4 sm:p-5 rounded-lg border border-slate-200">
-            <h2 className="text-base sm:text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+          <div className="mb-6  p-4 sm:p-5 rounded-lg border border-muted text-primary ">
+            <h2 className="text-base sm:text-lg font-semibold  mb-4 flex items-center gap-2">
               <Info size={18} className="flex-shrink-0" />
               Repository Information
             </h2>
             <div className="space-y-3">
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-slate-600 mb-1">
+                <label className="block text-xs sm:text-sm font-medium  mb-1">
                   Project Name
                 </label>
-                <p className="text-sm sm:text-base text-slate-900 font-medium break-words">
+                <p className="text-sm sm:text-base  font-medium break-words">
                   {deployedProject.name}
                 </p>
               </div>
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-slate-600 mb-1">
+                <label className="block text-xs sm:text-sm font-medium  mb-1">
                   Clone URL
                 </label>
-                <p className="text-xs sm:text-sm text-slate-900 font-mono break-all">
+                <p className="text-xs sm:text-sm  font-mono break-all">
                   {deployedProject.clone_url}
                 </p>
               </div>
               {deployedProject.description && (
                 <div>
-                  <label className="block text-xs sm:text-sm font-medium text-slate-600 mb-1">
+                  <label className="block text-xs sm:text-sm font-medium  mb-1">
                     Description
                   </label>
-                  <p className="text-sm sm:text-base text-slate-700 break-words">
+                  <p className="text-sm sm:text-base  break-words">
                     {deployedProject.description}
                   </p>
                 </div>
@@ -453,27 +429,33 @@ const DeploymentProjectForm: React.FC = () => {
           <div className="space-y-5 sm:space-y-6">
             {/* Project Type Selection */}
             <div>
-              <label className="block text-sm sm:text-base font-semibold text-slate-700 mb-3">
+              <label className="block text-sm sm:text-base font-semibold  mb-3">
                 Project Type <span className="text-red-500">*</span>
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
                 {PROJECT_TYPES.map((type) => (
-                  <button
+                  <Button
                     key={type.value}
                     onClick={() => handleInputChange("projectType", type.value)}
-                    className={`p-3 sm:p-4 rounded-lg border-2 text-left transition-all ${
+                    className={`p-3 h-[100px] sm:p-4 rounded-lg border-2 text-left transition-all flex items-center justify-center flex-col ${
                       formData.projectType === type.value
-                        ? "border-blue-500 bg-blue-50 shadow-md"
-                        : "border-slate-200 hover:border-slate-300 bg-white hover:shadow-sm"
+                        ? "border-blue-500 bg-card shadow-md text-primary duration-300 hover:bg-muted cursor-pointer"
+                        : " hover:bg-muted cursor-pointer duration-300  hover:shadow-sm text-primary bg-card"
                     }`}
                   >
-                    <div className="font-semibold text-sm sm:text-base text-slate-900">
-                      {type.label}
+                    <div className="flex justify-center items-center gap-2 font-semibold text-sm sm:text-base ">
+                      <img
+                        src={type.image}
+                        width={20}
+                        height={20}
+                        alt={type.value}
+                      />
+                      <span>{type.label}</span>
                     </div>
-                    <div className="text-xs sm:text-sm text-slate-600 mt-1 leading-snug">
+                    <div className="text-xs sm:text-sm  mt-1 leading-snug">
                       {type.description}
                     </div>
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
@@ -482,7 +464,7 @@ const DeploymentProjectForm: React.FC = () => {
             {formData.projectType !== "static" && (
               <>
                 <div>
-                  <label className="block text-sm sm:text-base font-semibold text-slate-700 mb-2">
+                  <label className="block text-sm sm:text-base font-semibold  mb-2">
                     Package Manager <span className="text-red-500">*</span>
                   </label>
                   <select
@@ -490,10 +472,14 @@ const DeploymentProjectForm: React.FC = () => {
                     onChange={(e) =>
                       handleInputChange("packageManager", e.target.value)
                     }
-                    className="w-full px-3 sm:px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition bg-white text-sm sm:text-base"
+                    className="w-full px-3 sm:px-4 py-2 appearance-none rounded-lg bg-card border border-muted hover:bg-card transition  text-sm sm:text-base cursor-pointer"
                   >
                     {PACKAGE_MANAGERS.map((pm) => (
-                      <option key={pm.value} value={pm.value}>
+                      <option
+                        className="cursor-pointer hover:bg-card border border-muted p-2 duration-300"
+                        key={pm.value}
+                        value={pm.value}
+                      >
                         {pm.label}
                       </option>
                     ))}
@@ -501,7 +487,7 @@ const DeploymentProjectForm: React.FC = () => {
                 </div>
 
                 {/* TypeScript Checkbox */}
-                <div className="flex items-center gap-3 p-3 sm:p-4 bg-slate-50 rounded-lg border border-slate-200">
+                <div className="flex items-center gap-3 p-3 sm:p-4 rounded-lg border ">
                   <input
                     type="checkbox"
                     id="typescript"
@@ -513,7 +499,7 @@ const DeploymentProjectForm: React.FC = () => {
                   />
                   <label
                     htmlFor="typescript"
-                    className="text-sm sm:text-base font-medium text-slate-700 cursor-pointer select-none"
+                    className="text-sm sm:text-base font-medium text-muted-foreground  cursor-pointer select-none"
                   >
                     This project uses TypeScript
                   </label>
@@ -524,7 +510,7 @@ const DeploymentProjectForm: React.FC = () => {
             {/* Build Script */}
             {currentProjectType.requiresBuildScript && (
               <div>
-                <label className="block text-sm sm:text-base font-semibold text-slate-700 mb-2">
+                <label className="block text-sm sm:text-base font-semibold  mb-2">
                   Build Script <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -535,8 +521,8 @@ const DeploymentProjectForm: React.FC = () => {
                   }
                   className={`w-full px-3 sm:px-4 py-2.5 rounded-lg border text-sm sm:text-base ${
                     errors.buildScript
-                      ? "border-red-300 bg-red-50"
-                      : "border-slate-300"
+                      ? "border-red-300 bg-card"
+                      : "border-muted"
                   } focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition`}
                   placeholder="npm run build"
                 />
@@ -552,7 +538,7 @@ const DeploymentProjectForm: React.FC = () => {
             {/* Run Script */}
             {currentProjectType.requiresRunScript && (
               <div>
-                <label className="block text-sm sm:text-base font-semibold text-slate-700 mb-2">
+                <label className="block text-sm sm:text-base font-semibold  mb-2">
                   Run Script <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -562,9 +548,7 @@ const DeploymentProjectForm: React.FC = () => {
                     handleInputChange("runScript", e.target.value)
                   }
                   className={`w-full px-3 sm:px-4 py-2.5 rounded-lg border text-sm sm:text-base ${
-                    errors.runScript
-                      ? "border-red-300 bg-red-50"
-                      : "border-slate-300"
+                    errors.runScript ? "border-red-300 bg-card" : "border-muted"
                   } focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition`}
                   placeholder="npm start"
                 />
@@ -579,7 +563,7 @@ const DeploymentProjectForm: React.FC = () => {
 
             {/* Main Directory */}
             <div>
-              <label className="block text-sm sm:text-base font-semibold text-slate-700 mb-2">
+              <label className="block text-sm sm:text-base font-semibold  mb-2">
                 Main Directory <span className="text-red-500">*</span>
               </label>
               <input
@@ -590,12 +574,12 @@ const DeploymentProjectForm: React.FC = () => {
                 }
                 className={`w-full px-3 sm:px-4 py-2.5 rounded-lg border text-sm sm:text-base ${
                   errors.mainDirectory
-                    ? "border-red-300 bg-red-50"
-                    : "border-slate-300"
+                    ? "border-red-300 bg-card"
+                    : "border-muted"
                 } focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition`}
                 placeholder="./"
               />
-              <p className="mt-1.5 text-xs sm:text-sm text-slate-500">
+              <p className="mt-1.5 text-xs sm:text-sm ">
                 Root directory of your project (e.g., ./ or ./app)
               </p>
               {errors.mainDirectory && (
@@ -609,16 +593,17 @@ const DeploymentProjectForm: React.FC = () => {
             {/* Environment Variables */}
             <div>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-                <label className="block text-sm sm:text-base font-semibold text-slate-700">
+                <label className="block text-sm sm:text-base font-semibold ">
                   Environment Variables
                 </label>
-                <button
+                <Button
                   onClick={addEnvVar}
                   disabled={!canAddEnvVar()}
+                  variant={"default"}
                   className={`inline-flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg transition ${
                     canAddEnvVar()
-                      ? "text-blue-600 hover:bg-blue-50 border border-blue-200 hover:border-blue-300 cursor-pointer"
-                      : "text-slate-400 bg-slate-100 border border-slate-200 cursor-not-allowed"
+                      ? " border hover:opacity-65 duration-300 cursor-pointer"
+                      : "  border  cursor-not-allowed"
                   }`}
                   title={
                     !canAddEnvVar()
@@ -628,15 +613,15 @@ const DeploymentProjectForm: React.FC = () => {
                 >
                   <Plus size={16} />
                   Add Variable
-                </button>
+                </Button>
               </div>
 
               {formData.envVars.length === 0 ? (
-                <div className="text-center py-8 sm:py-12 border-2 border-dashed border-slate-200 rounded-lg bg-slate-50">
-                  <p className="text-slate-500 text-sm sm:text-base font-medium">
+                <div className="text-center py-8 sm:py-12 border-2 border-dashed rounded-lg ">
+                  <p className=" text-sm sm:text-base font-medium">
                     No environment variables added yet
                   </p>
-                  <p className="text-slate-400 text-xs sm:text-sm mt-1">
+                  <p className=" text-xs sm:text-sm mt-1">
                     Click "Add Variable" to get started
                   </p>
                 </div>
@@ -651,7 +636,7 @@ const DeploymentProjectForm: React.FC = () => {
                           onChange={(e) =>
                             updateEnvVar(env.id, "key", e.target.value)
                           }
-                          className="flex-1 px-3 sm:px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition text-sm sm:text-base font-mono"
+                          className="flex-1 px-3 sm:px-4 py-2.5 rounded-lg border  focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition text-sm sm:text-base font-mono border-muted"
                           placeholder="KEY"
                         />
                         <div className="flex-1 relative">
@@ -661,12 +646,13 @@ const DeploymentProjectForm: React.FC = () => {
                             onChange={(e) =>
                               updateEnvVar(env.id, "value", e.target.value)
                             }
-                            className="w-full px-3 sm:px-4 py-2.5 pr-10 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition text-sm sm:text-base font-mono"
+                            className="w-full px-3 sm:px-4 py-2.5 pr-10 rounded-lg border  border-muted focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition text-sm sm:text-base font-mono"
                             placeholder="value"
                           />
-                          <button
+                          <Button
                             onClick={() => toggleEnvVisibility(env.id)}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-600 transition rounded"
+                            variant={"outline"}
+                            className="border border-muted absolute right-2 top-1/2 -translate-y-1/2 p-1.5  hover:opacity-65 transition duration-300 "
                             aria-label={
                               env.isVisible ? "Hide value" : "Show value"
                             }
@@ -676,16 +662,17 @@ const DeploymentProjectForm: React.FC = () => {
                             ) : (
                               <Eye size={16} />
                             )}
-                          </button>
+                          </Button>
                         </div>
-                        <button
+                        <Button
                           onClick={() => removeEnvVar(env.id)}
-                          className="sm:w-auto w-full p-2.5 text-red-600 hover:bg-red-50 cursor-pointer rounded-lg transition border border-transparent hover:border-red-200"
+                          variant={"destructive"}
+                          className="text-sm"
                           title="Remove variable"
                           aria-label="Remove environment variable"
                         >
                           <Trash2 size={18} className="mx-auto sm:mx-0" />
-                        </button>
+                        </Button>
                       </div>
                       {errors[`envKey_${index}`] && (
                         <p className="mt-1 text-xs sm:text-sm text-red-600 flex items-center gap-1">
@@ -699,7 +686,7 @@ const DeploymentProjectForm: React.FC = () => {
               )}
 
               {formData.envVars.length > 0 && !canAddEnvVar() && (
-                <p className="mt-2 text-xs sm:text-sm text-amber-600 flex items-center gap-1 bg-amber-50 p-3 rounded-lg border border-amber-200">
+                <p className="mt-2 text-xs sm:text-sm text-amber-600 flex items-center gap-1 bg-card my-2 p-3 rounded-lg border border-amber-200">
                   <AlertCircle size={14} className="flex-shrink-0" />
                   Fill in both key and value to add another environment variable
                 </p>
@@ -708,14 +695,15 @@ const DeploymentProjectForm: React.FC = () => {
 
             {/* Submit Button */}
             <div className="pt-4">
-              <button
+              <Button
+                variant={"default"}
                 onClick={handleSubmit}
                 disabled={isDeploying}
-                className={`w-full font-semibold py-3 sm:py-3.5 rounded-lg transition shadow-lg text-sm sm:text-base flex items-center justify-center gap-2 ${
+                className={`w-full py-2  transition shadow-sm font-semibold text-sm sm:text-base flex items-center justify-center gap-2 cursor-pointer duration-300 ${
                   isDeploying
-                    ? "bg-slate-400 cursor-not-allowed"
-                    : "bg-blue-600 hover:bg-blue-700 cursor-pointer shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 active:scale-[0.98]"
-                } text-white`}
+                    ? " cursor-not-allowed"
+                    : " hover:bg-accent hover:text-primary cursor-pointer hover:shadow-xl "
+                } `}
               >
                 {isDeploying ? (
                   <>
@@ -725,7 +713,7 @@ const DeploymentProjectForm: React.FC = () => {
                 ) : (
                   "Deploy Project"
                 )}
-              </button>
+              </Button>
             </div>
           </div>
         </div>

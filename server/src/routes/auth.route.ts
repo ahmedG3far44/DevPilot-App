@@ -4,8 +4,8 @@ import { getUserData, githubCallback, logout } from "../controllers/auth.control
 
 const router = Router();
 
-router.get("/auth/github/callback", githubCallback)
-router.get("/auth/me", getUserData)
-router.post("/auth/logout", logout)
+router.get("/github/callback", githubCallback)
+router.get("/me", getUserData)
+router.post("/logout", logout)
 
 export default router;

@@ -51,90 +51,118 @@ export const createDeployment = async (req: AuthRequest, res: Response) => {
   res.flushHeaders();
 
   try {
-    // const conn = new Client();
+    const conn = new Client();
 
-    // conn
-    //   .on("ready", () => {
-    //     res.write("Connected to server...\n");
+    conn
+      .on("ready", () => {
+        res.write("Connected to server...\n");
 
-    //     conn.exec(`${command};`, (err, stream) => {
-    //       if (err) {
-    //         res.write("ERR: " + err.message + "\n");
-    //         res.end();
-    //         conn.end();
-    //         return;
-    //       }
+        conn.exec(`${command};`, (err, stream) => {
+          if (err) {
+            res.write("ERR: " + err.message + "\n");
+            res.end();
+            conn.end();
+            return;
+          }
 
-    //       stream
-    //         .on("data", (chunk: Buffer) => {
-    //           res.write(chunk.toString());
-    //         })
-    //         .stderr.on("data", (chunk: Buffer) => {
-    //           res.write("ERR: " + chunk.toString());
-    //         });
+          stream
+            .on("data", (chunk: Buffer) => {
+              res.write(chunk.toString());
+            })
+            .stderr.on("data", (chunk: Buffer) => {
+              res.write("ERR: " + chunk.toString());
+            });
 
-    //       stream.on("close", async (code: number, signal: string) => {
-    //         res.write(`Command finished (exit=${code}, signal=${signal})\n`);
+          stream.on("close", async (code: number, signal: string) => {
+            res.write(`Command finished (exit=${code}, signal=${signal})\n`);
             
-    //         try {
+            try {
 
-    //           // _id:string;
-    //           // name: string;
-    //           // port: number;
-    //           // description: string;
-    //           // clone_url:string;
-    //           // run_script?: string;
-    //           // build_script?: string;
-    //           // main_directory: string;
-    //           // typescript:boolean;
-    //           // type: "react" | "nest" | "express" | "next" |"static";
-    //           // envVars: "string";
-    //           // status
-    //           // signal
-    //           // params data
-    //           // comand
-    //           // userId
+              // _id:string;
+              // name: string;
+              // port: number;
+              // description: string;
+              // clone_url:string;
+              // run_script?: string;
+              // build_script?: string;
+              // main_directory: string;
+              // typescript:boolean;
+              // type: "react" | "nest" | "express" | "next" |"static";
+              // envVars: "string";
+              // status
 
-    //           const project = {
-    //               ...data,
-    //               userId: user?.id,
-    //               command,
-    //               params: data,
-    //               exitCode: code,
-    //               signal,
-    //               status: code === 0 ? "success" : "failed",
-    //               url: `https://${data.name}.${DOMAIN}`
-    //           }
+              // params data
+              // comand
+              // userId
 
-    //           console.log(project)
+              // name
+              // description
+              // clone_url
+              // run_script
+              // build_script
+              // port
+              // main_dir
+              // type
+              // typescript
+              // envVars
+              // status
+              // params
+              // username
+              // url      
 
-    //           await Project.create(project);
+              const {name, repo ,type, pkg, main_dir, envVars, run_script, typescript, port, build_script } = data;
 
-    //           console.log("project info saved on db success!!")
-    //         } catch (dbErr) {
-    //           console.error("DB save error:", dbErr);
-    //           res.write("Warning: failed to save deployment log to database\n");
-    //         }
+              const project = {
+                  name,
+                  clone_url:repo,
+                  run_script,
+                  build_script,
+                  port,
+                  main_dir,
+                  type,
+                  typescript,
+                  envVars,
+                  status: code === 0 ? "active" : "failed",
+                  params: data,
+                  username: user?.username,
+                  url: `https://${data.name}.${DOMAIN}`,
+                  command,
+                  pkg
+              }
 
-    //         res.end();
-    //         conn.end();
-    //       });
-    //     });
-    //   })
-    //   .on("error", (err) => {
-    //     res.write("SSH error: " + err.message + "\n");
-    //     res.end();
-    //   })
-    //   .connect({
-    //     host: HOST,
-    //     username: USERNAME,
-    //     password: PASSWORD,
-    //     port: Number(SSH_PORT),
-    //     tryKeyboard: false,
-    //   });
+              console.log(project)
 
-    console.log(command)
-    res.status(200).json(command)
+              const projectExists = await Project.findOne({name:data.name})
+
+              if(!projectExists){
+                await Project.create(project);
+                console.log("create a new project success")
+              }
+
+            } catch (dbErr) {
+              console.error("DB save error:", dbErr);
+              res.write("Warning: failed to save deployment log to database\n");
+            }
+
+            res.end();
+            conn.end();
+          });
+        });
+      })
+      .on("error", (err) => {
+        res.write("SSH error: " + err.message + "\n");
+        res.end();
+      })
+      .connect({
+        host: HOST,
+        username: USERNAME,
+        password: PASSWORD,
+        port: Number(SSH_PORT),
+        tryKeyboard: false,
+      });
+
+    // console.log(command)
+    // res.status(200).json(command)
 
   } catch (err: any) {
     console.error("[Deploy Error]", err);

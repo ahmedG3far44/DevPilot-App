@@ -104,8 +104,9 @@ const HomePage: React.FC = () => {
           }}
         />
       </div>
-      
-      <Header />
+      <div className="lg:w-3/4 mx-auto p-4 lg:p-8">
+        <Header />
+      </div>
       <section className="relative z-10 max-w-7xl mx-auto px-6 pt-20 pb-32">
         <div
           className={`text-center transition-all duration-1000 ${
