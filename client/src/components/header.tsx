@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/context/auth/AuthContext";
 import { FolderOpenDot, GitBranch, Logs } from "lucide-react";
 
 import Logo from "./Logo";
@@ -43,7 +43,7 @@ export const Header = () => {
                       return (
                         <li
                           key={link.id}
-                          className="flex items-center gap-2 hover:text-violet-500 duration-300 cursor-pointer hover:opacity-70"
+                          className="flex items-center gap-2 hover:text-muted-foreground duration-300 cursor-pointer "
                         >
                           <span>{link.icon}</span>{" "}
                           <Link to={link.path}>{link.name}</Link>

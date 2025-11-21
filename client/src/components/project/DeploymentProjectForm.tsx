@@ -10,11 +10,12 @@ import {
   Loader2,
 } from "lucide-react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
-import { useDeploy, type DeployBodyType } from "@/context/DeployContext";
+import { useAuth } from "@/context/auth/AuthContext";
+import { useDeploy, type DeployBodyType } from "@/context/deploy/DeployContext";
+import { Button } from "../ui/button";
+
 import DeploymentLogs from "./DeploymentLogs";
 import ErrorMessage from "../ui/error";
-import { Button } from "../ui/button";
 
 interface EnvVar {
   id: string;
@@ -343,7 +344,7 @@ const DeploymentProjectForm: React.FC = () => {
     }
   };
 
-  if (!isDeploying)
+  if (isDeploying)
     return (
       <DeploymentLogs
         logs={logs}
@@ -696,14 +697,9 @@ const DeploymentProjectForm: React.FC = () => {
             {/* Submit Button */}
             <div className="pt-4">
               <Button
-                variant={"default"}
                 onClick={handleSubmit}
                 disabled={isDeploying}
-                className={`w-full py-2  transition shadow-sm font-semibold text-sm sm:text-base flex items-center justify-center gap-2 cursor-pointer duration-300 ${
-                  isDeploying
-                    ? " cursor-not-allowed"
-                    : " hover:bg-accent hover:text-primary cursor-pointer hover:shadow-xl "
-                } `}
+                className={`w-full py-2 text-primary border border-muted bg-accent hover:bg-card  transition shadow-sm  text-sm sm:text-base flex items-center justify-center gap-2 cursor-pointer duration-300  `}
               >
                 {isDeploying ? (
                   <>

@@ -39,26 +39,26 @@ import Spinner from "../ui/spinner";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 
-interface EnvVariable {
+export interface EnvVariable {
   key: string;
   value: string;
   visible?: boolean;
 }
 
-interface LogEntry {
+export interface LogEntry {
   id: string;
   timestamp: string;
   level: "info" | "warn" | "error" | "debug";
   message: string;
 }
 
-interface TrafficData {
+export interface TrafficData {
   time: string;
   requests: number;
   responseTime: number;
 }
 
-interface ProjectData {
+export interface ProjectData {
   id: string;
   name: string;
   clone_url: string;
@@ -439,7 +439,6 @@ const ProjectMonitor: React.FC = () => {
     return () => clearInterval(interval);
   }, [autoRefresh, project]);
 
-  // Utility functions
   const toggleEnvVisibility = (key: string) => {
     setEnvVars((prev) =>
       prev.map((env) =>

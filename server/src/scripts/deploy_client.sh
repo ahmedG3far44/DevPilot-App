@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+
+
 export AWS_PROFILE=default
 export AWS_SHARED_CREDENTIALS_FILE="/home/dev-pilot/.aws/credentials"
 
-echo "🔍 Checking AWS credentials..."
+echo "🔍 Checking CLI credentials..."
 if ! aws sts get-caller-identity >/dev/null 2>&1; then
-  echo "❌ AWS credentials not found or invalid. Please run 'aws configure' for this user."
+  echo "❌ AWS CLI credentials not found or invalid. Please run 'aws configure' for this user."
   exit 1
 fi
-echo "✅ AWS credentials verified."
+echo "✅ CLI credentials verified."
 
 # ------------------- Configuration -------------------
 

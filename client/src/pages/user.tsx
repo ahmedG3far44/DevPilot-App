@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/context/auth/AuthContext";
 import { RepoCard } from "@/components/repo/RepoCard";
 
 import Spinner from "@/components/ui/spinner";

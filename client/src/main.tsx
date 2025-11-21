@@ -4,8 +4,8 @@ import { createRoot } from "react-dom/client";
 import { ThemeProvider } from "@/components/theme-provider";
 
 import App from "./App.tsx";
-import AuthProvider from "./context/AuthProvider.tsx";
-import DeployProvider from "./context/DeployProvider.tsx";
+import AuthProvider from "./context/auth/AuthProvider.tsx";
+import DeployProvider from "./context/deploy/DeployProvider.tsx";
 
 import "./index.css";
 
