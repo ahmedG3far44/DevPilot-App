@@ -5,8 +5,8 @@ export const ProjectTypeSchema = z.enum([
   "static",
   "react",
   "express",
-  "nextjs",
-  "nestjs",
+  "next",
+  "nest",
 ]);
 
 export const deploySchema = z.object({

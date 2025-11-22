@@ -24,7 +24,7 @@ interface EnvVar {
   isVisible: boolean;
 }
 
-type ProjectType = "nextjs" | "react" | "static" | "express" | "nestjs";
+type ProjectType = "next" | "react" | "static" | "express" | "nest";
 
 interface ProjectFormData {
   projectType: ProjectType;
@@ -89,7 +89,7 @@ const PACKAGE_MANAGERS: PackageManager[] = [
 const PROJECT_TYPES: ProjectTypeConfig[] = [
   {
     image: "/images/nextjs.png",
-    value: "nextjs",
+    value: "next",
     label: "Next.js",
     description: "React framework with SSR/SSG",
     requiresRunScript: true,
@@ -129,7 +129,7 @@ const PROJECT_TYPES: ProjectTypeConfig[] = [
   },
   {
     image: "/images/nestjs.png",
-    value: "nestjs",
+    value: "nest",
     label: "NestJS",
     description: "Progressive Node.js framework",
     requiresRunScript: true,
@@ -156,7 +156,7 @@ const DeploymentProjectForm: React.FC = () => {
   if (error) return <ErrorMessage message={error} />;
 
   const [formData, setFormData] = useState<ProjectFormData>({
-    projectType: "nextjs",
+    projectType: "next",
     packageManager: "npm",
     runScript: "npm start",
     buildScript: "npm run build",
@@ -184,7 +184,7 @@ const DeploymentProjectForm: React.FC = () => {
     if (!projectType) return;
 
     const runScript = projectType.requiresRunScript
-      ? formData.projectType === "nestjs"
+      ? formData.projectType === "nest"
         ? `${formData.packageManager} run start:prod`
         : pm.runCmd
       : "";

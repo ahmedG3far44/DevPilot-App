@@ -113,6 +113,7 @@ const ProjectsProvider: FC<PropsWithChildren> = ({ children }) => {
     try {
       setDeleting(true);
       setError(null);
+      console.log("start deleting...");
       const response = await fetch(`${BASE_URL}/project/${projectId}/delete`, {
         method: "DELETE",
         credentials: "include",

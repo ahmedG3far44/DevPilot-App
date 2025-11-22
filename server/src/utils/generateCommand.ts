@@ -1,4 +1,4 @@
-type ProjectType = "static" | "react" | "express" | "nextjs" | "nestjs";
+type ProjectType = "static" | "react" | "express" | "next" | "nest";
 
 interface DeployConfig {
   name: string;

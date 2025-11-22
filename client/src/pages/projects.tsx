@@ -34,10 +34,13 @@ import {
   GitBranch,
   Server,
   AlertCircle,
+  Loader2,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import Spinner from "@/components/ui/spinner";
 import ErrorMessage from "@/components/ui/error";
+import { useDeploy } from "@/context/deploy/DeployContext";
+import { useProject } from "@/context/projects/ProjectsContext";
 
 const BASE_URL = import.meta.env.VITE_BASE_URL as string;
 
@@ -148,10 +151,15 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ onActionClick }) => {
     );
   };
 
-  /**
-   * Handles project actions (restart, stop, delete, etc.)
-   */
-  const handleAction = (action: string, projectId: string) => {
+  const {
+    deleteProject,
+    restartServer,
+    stopServer,
+    deleting,
+    restarting,
+    stopping,
+  } = useProject();
+  const handleAction = async (action: string, projectId: string) => {
     if (onActionClick) {
       onActionClick(action, projectId);
     } else {
@@ -160,17 +168,17 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ onActionClick }) => {
       // Example:
       switch (action) {
         case "restart":
-          console.log("await api.restartProject(projectId);");
+          await restartServer(projectId);
           break;
         case "stop":
           console.log("await api.stopProject(projectId);");
+          await stopServer(projectId);
           break;
         case "settings":
           navigate(`/project/${projectId}`);
           break;
         case "delete":
-          if (confirm("Are you sure?"))
-            console.log("await api.deleteProject(projectId);");
+          await deleteProject(projectId);
           break;
       }
     }
@@ -326,7 +334,6 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ onActionClick }) => {
                         </div>
                       </TableCell>
 
-                      {/* Project URL */}
                       <TableCell>
                         <a
                           href={project.url}
@@ -366,25 +373,35 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ onActionClick }) => {
                               View Live
                             </DropdownMenuItem>
 
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleAction("restart", project._id)
-                              }
-                              className="cursor-pointer"
-                              disabled={project.status === "pending"}
-                            >
-                              <Play className="mr-2 h-4 w-4" />
-                              Restart
-                            </DropdownMenuItem>
+                            <>
+                              {project.type === "express" ||
+                                project.type === "nest" ||
+                                (project.type === "next" && (
+                                  <>
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        handleAction("restart", project._id)
+                                      }
+                                      className="cursor-pointer"
+                                      disabled={project.status === "pending"}
+                                    >
+                                      <Play className="mr-2 h-4 w-4" />
+                                      Restart
+                                    </DropdownMenuItem>
 
-                            <DropdownMenuItem
-                              onClick={() => handleAction("stop", project._id)}
-                              className="cursor-pointer"
-                              disabled={project.status !== "active"}
-                            >
-                              <Pause className="mr-2 h-4 w-4" />
-                              Stop
-                            </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        handleAction("stop", project._id)
+                                      }
+                                      className="cursor-pointer"
+                                      disabled={project.status !== "active"}
+                                    >
+                                      <Pause className="mr-2 h-4 w-4" />
+                                      Stop
+                                    </DropdownMenuItem>
+                                  </>
+                                ))}
+                            </>
 
                             <DropdownMenuItem
                               onClick={() =>
@@ -409,19 +426,20 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ onActionClick }) => {
                             <DropdownMenuSeparator />
 
                             <DropdownMenuItem
-                              onClick={() => {
-                                if (
-                                  window.confirm(
-                                    `Are you sure you want to delete "${project.name}"? This action cannot be undone.`
-                                  )
-                                ) {
-                                  handleAction("delete", project._id);
-                                }
-                              }}
-                              className="cursor-pointer text-red-600 focus:text-red-600 dark:text-red-400 focus:bg-red-50 dark:focus:bg-red-950"
+                              onClick={() => deleteProject(project._id)}
+                              className="cursor-pointer text-secondary focus:text-red-600 dark:text-red-400 focus:bg-red-50 dark:focus:bg-red-950"
                             >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete Project
+                              {deleting ? (
+                                <div className="flex items-center gap-2 text-primary hover:text-destructive">
+                                  <Loader2 className="animate-spin" size={10} />{" "}
+                                  Deleting....
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2 text-primary hover:text-destructive">
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete Project
+                                </div>
+                              )}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
