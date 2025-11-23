@@ -6,6 +6,7 @@ import Logo from "./Logo";
 import LoginButton from "./buttons/LoginButton";
 import LogoutButton from "./buttons/LogoutButton";
 import { ModeToggle } from "./mode-toggle";
+import { Fragment } from "react/jsx-runtime";
 
 export const Header = () => {
   const { user, isAuthenticated, loading } = useAuth();
@@ -38,7 +39,7 @@ export const Header = () => {
             <div>
               {!loading && (
                 <div className="flex items-center gap-4 justify-center">
-                  <nav className="mr-10 flex items-center justify-center gap-8">
+                  <nav className="mr-10 hidden lg:flex items-center justify-center gap-8">
                     {navigations.map((link) => {
                       return (
                         <li
@@ -55,8 +56,10 @@ export const Header = () => {
                     picture={user?.avatar_url as string}
                     name={user?.name as string}
                   />
-                  <ModeToggle />
-                  <LogoutButton />
+                  <div className="hidden lg:flex flex-row lg:flex-col gap-2 lg:gap-4 hover:flex">
+                    <ModeToggle />
+                    <LogoutButton />
+                  </div>
                 </div>
               )}
             </div>

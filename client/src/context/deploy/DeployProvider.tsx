@@ -35,6 +35,8 @@ const DeployProvider: FC<PropsWithChildren> = ({ children }) => {
       const reader = response.body.getReader();
       const decoder = new TextDecoder("utf-8");
       let buffer = "";
+      let projectId = "";
+      let redirectUrl = "";
 
       // 2. Read the stream
       while (true) {
@@ -60,6 +62,25 @@ const DeployProvider: FC<PropsWithChildren> = ({ children }) => {
         if (lines.length > 0) {
           setLogs((prev) => [...prev, ...lines]);
         }
+
+        if (buffer.includes("DEPLOY_STATUS:SUCCESS")) {
+          // Extract project ID
+          const projectIdMatch = buffer.match(/PROJECT_ID:([^\n]+)/);
+          if (projectIdMatch) {
+            projectId = projectIdMatch[1];
+          }
+
+          // Extract redirect URL
+          const redirectMatch = buffer.match(/REDIRECT_URL:([^\n]+)/);
+          console.log(redirectMatch);
+          if (redirectMatch) {
+            redirectUrl = redirectMatch[1];
+          }
+        }
+      }
+
+      if (projectId && redirectUrl) {
+        window.location.href = redirectUrl;
       }
     } catch (err: any) {
       setError(err.message);

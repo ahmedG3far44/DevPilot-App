@@ -45,7 +45,7 @@ export const createDeployment = async (req: AuthRequest, res: Response) => {
   const data = parse.data;
   const command = generateDeployCommand(data);
 
-  // prepare streaming response
+  // Prepare streaming response
   res.setHeader("Content-Type", "text/plain; charset=utf-8");
   res.setHeader("Transfer-Encoding", "chunked");
   res.flushHeaders();
@@ -60,6 +60,7 @@ export const createDeployment = async (req: AuthRequest, res: Response) => {
         conn.exec(`${command};`, (err, stream) => {
           if (err) {
             res.write("ERR: " + err.message + "\n");
+            res.write("DEPLOY_STATUS:FAILED\n"); // Signal to client
             res.end();
             conn.end();
             return;
@@ -77,80 +78,66 @@ export const createDeployment = async (req: AuthRequest, res: Response) => {
             res.write(`Command finished (exit=${code}, signal=${signal})\n`);
             
             try {
-
-              // _id:string;
-              // name: string;
-              // port: number;
-              // description: string;
-              // clone_url:string;
-              // run_script?: string;
-              // build_script?: string;
-              // main_directory: string;
-              // typescript:boolean;
-              // type: "react" | "nest" | "express" | "next" |"static";
-              // envVars: "string";
-              // status
-
-              // params data
-              // comand
-              // userId
-
-              // name
-              // description
-              // clone_url
-              // run_script
-              // build_script
-              // port
-              // main_dir
-              // type
-              // typescript
-              // envVars
-              // status
-              // params
-              // username
-              // url      
-
-              const {name, repo ,type, pkg, main_dir, envVars, run_script, typescript, port, build_script } = data;
+              const { name, repo, type, pkg, main_dir, envVars, run_script, typescript, port, build_script } = data;
 
               const project = {
-                  name,
-                  clone_url:repo,
-                  run_script,
-                  build_script,
-                  port,
-                  main_dir,
-                  type,
-                  typescript,
-                  envVars,
-                  status: code === 0 ? "active" : "failed",
-                  params: data,
-                  username: user?.username,
-                  url: `https://${data.name}.${DOMAIN}`,
-                  command,
-                  pkg
+                name,
+                clone_url: repo,
+                run_script,
+                build_script,
+                port,
+                main_dir,
+                type,
+                typescript,
+                envVars,
+                status: code === 0 ? "active" : "failed",
+                params: data,
+                username: user?.username,
+                url: `https://${data.name}.${DOMAIN}`,
+                command,
+                pkg
+              };
+
+              console.log("Saving project:", project);
+
+              let savedProject = await Project.findOne({ name: data.name });
+
+              if (!savedProject) {
+                savedProject = await Project.create(project);
+                console.log("Created new project successfully");
+              } else {
+                // Update existing project
+                savedProject = await Project.findOneAndUpdate(
+                  { name: data.name },
+                  project,
+                  { new: true }
+                );
+                console.log("Updated existing project");
               }
 
-              console.log(project)
+              const redirectUrl = `${process.env.CLIENT_URL as string}/project/${savedProject?.id}`;
+              console.log("Redirect URL:", redirectUrl);
 
-              const projectExists = await Project.findOne({name:data.name})
-
-              if(!projectExists){
-                await Project.create(project);
-                console.log("create a new project success")
-              }
+              // Send special signal to client with project ID
+              res.write(`\nDEPLOY_STATUS:SUCCESS\n`);
+              res.write(`PROJECT_ID:${savedProject?.id}\n`);
+              res.write(`REDIRECT_URL:${redirectUrl}\n`);
 
             } catch (dbErr) {
               console.error("DB save error:", dbErr);
-              res.write("Warning: failed to save deployment log to database\n");
+              res.write("\nERR: Failed to save deployment to database\n");
+              res.write("DEPLOY_STATUS:DB_ERROR\n");
             }
 
-            res.end();
+            // Close connection and response
             conn.end();
+            res.end();
           });
         });
       })
       .on("error", (err) => {
         res.write("SSH error: " + err.message + "\n");
+        res.write("DEPLOY_STATUS:SSH_ERROR\n");
         res.end();
       })
       .connect({
@@ -161,16 +148,13 @@ export const createDeployment = async (req: AuthRequest, res: Response) => {
         tryKeyboard: false,
       });
 
-    // console.log(command)
-    // res.status(200).json(command)
-
   } catch (err: any) {
     console.error("[Deploy Error]", err);
     res.write(`Failed to start deployment: ${err.message}\n`);
+    res.write("DEPLOY_STATUS:FAILED\n");
     res.end();
   }
 };
-
 
 export const getDeployments = async (req: AuthRequest, res: Response): Promise<void> => {
   try {

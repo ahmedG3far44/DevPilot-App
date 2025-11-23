@@ -1,5 +1,5 @@
 {
-  "name": "devpilot-(server)",
+  "name": "devpilot",
   "version": "1.0.0",
   "description": "Online platform that's helps developers to deploy their Nodejs apps.",
   "main": "index.js",

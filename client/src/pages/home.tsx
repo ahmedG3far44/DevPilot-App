@@ -13,11 +13,22 @@ import {
 } from "lucide-react";
 
 import { Header } from "@/components/header";
+import Logo from "@/components/Logo";
+import { useAuth } from "@/context/auth/AuthContext";
+import { useNavigate } from "react-router-dom";
 const HomePage: React.FC = () => {
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const [scrollY, setScrollY] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
 
-  // const { token, logout } = useAuth();
+  const handleStart = () => {
+    if (isAuthenticated) {
+      return navigate("/user");
+    } else {
+      return navigate("/login");
+    }
+  };
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY);
@@ -132,7 +143,10 @@ const HomePage: React.FC = () => {
           </p>
 
           <div className="flex items-center justify-center gap-4">
-            <button className="px-8 py-4 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg font-semibold hover:shadow-lg hover:shadow-purple-500/50 transition flex items-center gap-2 group">
+            <button
+              onClick={handleStart}
+              className="px-8 py-4 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg font-semibold hover:shadow-lg hover:shadow-purple-500/50 transition flex items-center gap-2 group"
+            >
               Get Started Free
               <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition" />
             </button>
@@ -273,7 +287,10 @@ const HomePage: React.FC = () => {
           <p className="text-xl text-slate-400 mb-12 max-w-2xl mx-auto">
             Join developers who trust Vibe for seamless GitHub deployments
           </p>
-          <button className="px-10 py-5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl font-bold text-lg hover:shadow-2xl hover:shadow-purple-500/50 transition flex items-center gap-3 mx-auto group">
+          <button
+            onClick={handleStart}
+            className="px-10 py-5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl font-bold text-lg hover:shadow-2xl hover:shadow-purple-500/50 transition flex items-center gap-3 mx-auto group"
+          >
             <Github className="w-6 h-6" />
             Start Deploying Now
             <ChevronRight className="w-6 h-6 group-hover:translate-x-1 transition" />
@@ -283,14 +300,10 @@ const HomePage: React.FC = () => {
       <footer className="relative z-10 border-t border-slate-800/50 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-6 py-12">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-                <Rocket className="w-5 h-5" />
-              </div>
-              <span className="text-xl font-bold">DevPilot</span>
-            </div>
+            <Logo />
             <div className="text-slate-400 text-sm">
-              © 2025 DevPilot. Built for developers who ship fast.
+              © {new Date().getFullYear()} DevPilot. Built for developers who
+              ship fast.
             </div>
           </div>
         </div>
