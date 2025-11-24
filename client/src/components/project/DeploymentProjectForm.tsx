@@ -13,6 +13,7 @@ import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/context/auth/AuthContext";
 import { useDeploy, type DeployBodyType } from "@/context/deploy/DeployContext";
 import { Button } from "../ui/button";
+import type { ProjectData } from "./ProjectMonitor";
 
 import DeploymentLogs from "./DeploymentLogs";
 import ErrorMessage from "../ui/error";
@@ -139,14 +140,45 @@ const PROJECT_TYPES: ProjectTypeConfig[] = [
   },
 ];
 
+const BASE_URL = import.meta.env.VITE_BASE_URL as string;
+
 const DeploymentProjectForm: React.FC = () => {
   const { repos } = useAuth();
   const { repoName } = useParams();
   const { handleDeploy, isDeploying, logs, error } = useDeploy();
+  const [projects, setProjectsList] = useState<ProjectData[]>([]);
+
+  const getProjectsList = async () => {
+    try {
+      const response = await fetch(`${BASE_URL}/project`, {
+        credentials: "include",
+      });
+      const results = await response.json();
+      setProjectsList(results?.data);
+      return results.data;
+    } catch (err) {
+      console.log(
+        (err as Error).name,
+        (err as Error).message,
+        (err as Error).stack
+      );
+    }
+  };
+
+  useEffect(() => {
+    getProjectsList();
+  }, []);
+
+  const numberOfServerProjects = projects.filter(
+    (project) =>
+      project.type === "express" ||
+      project.type === "next" ||
+      project.type === "nest"
+  );
 
   const navigate = useNavigate();
 
-  const deployedProject = repos.find(
+  const deployedProject = repos?.find(
     (repo) =>
       repo.name.toLowerCase().trim() === repoName?.toLocaleLowerCase().trim()
   );
@@ -307,7 +339,7 @@ const DeploymentProjectForm: React.FC = () => {
     return formData.envVars
       .filter((env) => env.key.trim() && env.value.trim())
       .map((env) => `${env.key}=${env.value}`)
-      .join(" ");
+      .join("\n");
   };
 
   const handleSubmit = async () => {
@@ -315,14 +347,23 @@ const DeploymentProjectForm: React.FC = () => {
 
     try {
       const envVarsString = getEnvVarsString();
+      const port = 4000 + numberOfServerProjects.length + 1;
+
+      console.log(port, "port");
 
       const deployPayload: DeployBodyType = {
-        name: deployedProject?.name,
+        name: deployedProject?.name.toLocaleLowerCase(),
         repo: deployedProject?.clone_url,
         type: formData.projectType,
         typescript: formData.typescript,
         run_script: formData.runScript,
         build_script: formData.buildScript,
+        port:
+          formData?.projectType === "express" ||
+          formData?.projectType === "nest" ||
+          formData?.projectType === "next"
+            ? port
+            : 0,
         main_dir: formData.mainDirectory,
         pkg: formData.packageManager,
         envVars: envVarsString,
@@ -377,8 +418,6 @@ const DeploymentProjectForm: React.FC = () => {
               </span>
             </div>
           )}
-
-          {/* Error Message */}
           {errors.submit && (
             <div className="mb-6 p-3 sm:p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
               <AlertCircle
@@ -390,8 +429,6 @@ const DeploymentProjectForm: React.FC = () => {
               </span>
             </div>
           )}
-
-          {/* Repository Information */}
           <div className="mb-6  p-4 sm:p-5 rounded-lg border border-muted text-primary ">
             <h2 className="text-base sm:text-lg font-semibold  mb-4 flex items-center gap-2">
               <Info size={18} className="flex-shrink-0" />
@@ -428,7 +465,6 @@ const DeploymentProjectForm: React.FC = () => {
           </div>
 
           <div className="space-y-5 sm:space-y-6">
-            {/* Project Type Selection */}
             <div>
               <label className="block text-sm sm:text-base font-semibold  mb-3">
                 Project Type <span className="text-red-500">*</span>
@@ -460,8 +496,6 @@ const DeploymentProjectForm: React.FC = () => {
                 ))}
               </div>
             </div>
-
-            {/* Package Manager - Hide for static sites */}
             {formData.projectType !== "static" && (
               <>
                 <div>
@@ -487,7 +521,6 @@ const DeploymentProjectForm: React.FC = () => {
                   </select>
                 </div>
 
-                {/* TypeScript Checkbox */}
                 <div className="flex items-center gap-3 p-3 sm:p-4 rounded-lg border ">
                   <input
                     type="checkbox"

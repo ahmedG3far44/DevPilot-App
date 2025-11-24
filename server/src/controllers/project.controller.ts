@@ -1,7 +1,7 @@
 import { Response } from "express"
 import { AuthRequest } from "../types"
 
-import Project from "../models/Project"
+import Project, { ProjectType } from "../models/Project"
 import { streamRemoteCommand } from "../utils/ssh";
 
 export const getProjectsList = async(req:AuthRequest, res:Response) =>{
@@ -171,23 +171,23 @@ export const getProjectsList = async(req:AuthRequest, res:Response) =>{
 
 export const streamProjectLogs = async (req: AuthRequest, res: Response) => {
   try {
-    const user = req.user;
-    const githubToken = req.cookies.access_token;
+    // const user = req.user;
+    // const githubToken = req.cookies.access_token;
     const projectId = req.params.id as string;
 
-    if (!githubToken) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized: Missing GitHub token.",
-      });
-    }
+    // if (!githubToken) {
+    //   return res.status(401).json({
+    //     success: false,
+    //     message: "Unauthorized: Missing GitHub token.",
+    //   });
+    // }
 
-    if (!user) {
-      return res.status(403).json({
-        success: false,
-        message: "Forbidden: You do not have access to this resource.",
-      });
-    }
+    // if (!user) {
+    //   return res.status(403).json({
+    //     success: false,
+    //     message: "Forbidden: You do not have access to this resource.",
+    //   });
+    // }
 
     const project = await Project.findById(projectId);
 
@@ -239,23 +239,23 @@ export const streamProjectLogs = async (req: AuthRequest, res: Response) => {
  export const restartServer = async(req:AuthRequest, res:Response) =>{
     try{
 
-        const user = req.user;
-        const githubToken = req.cookies.access_token;
+        // const user = req.user;
+        // const githubToken = req.cookies.access_token;
         const projectId = req.params.id as string;
 
-    if (!githubToken) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized: Missing GitHub token.",
-      });
-    }
+    // if (!githubToken) {
+    //   return res.status(401).json({
+    //     success: false,
+    //     message: "Unauthorized: Missing GitHub token.",
+    //   });
+    // }
 
-    if (!user) {
-      return res.status(403).json({
-        success: false,
-        message: "Forbidden: You do not have access to this resource.",
-      });
-    }
+    // if (!user) {
+    //   return res.status(403).json({
+    //     success: false,
+    //     message: "Forbidden: You do not have access to this resource.",
+    //   });
+    // }
 
     const project = await Project.findById(projectId);
 
@@ -307,7 +307,7 @@ export const streamProjectLogs = async (req: AuthRequest, res: Response) => {
  export const startRunningServer = async(req:AuthRequest, res:Response) =>{
     try{
 
-        const user = req.user;
+        // const user = req.user;
         const githubToken = req.cookies.access_token;
         const projectId = req.params.id as string;
 
@@ -318,12 +318,12 @@ export const streamProjectLogs = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    if (!user) {
-      return res.status(403).json({
-        success: false,
-        message: "Forbidden: You do not have access to this resource.",
-      });
-    }
+    // if (!user) {
+    //   return res.status(403).json({
+    //     success: false,
+    //     message: "Forbidden: You do not have access to this resource.",
+    //   });
+    // }
 
     const project = await Project.findById(projectId);
 
@@ -373,23 +373,23 @@ export const streamProjectLogs = async (req: AuthRequest, res: Response) => {
  export const stopRunningServer = async(req:AuthRequest, res:Response) =>{
     try{
 
-        const user = req.user;
-    const githubToken = req.cookies.access_token;
+    //     const user = req.user;
+    // const githubToken = req.cookies.access_token;
     const projectId = req.params.id as string;
 
-    if (!githubToken) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized: Missing GitHub token.",
-      });
-    }
+    // if (!githubToken) {
+    //   return res.status(401).json({
+    //     success: false,
+    //     message: "Unauthorized: Missing GitHub token.",
+    //   });
+    // }
 
-    if (!user) {
-      return res.status(403).json({
-        success: false,
-        message: "Forbidden: You do not have access to this resource.",
-      });
-    }
+    // if (!user) {
+    //   return res.status(403).json({
+    //     success: false,
+    //     message: "Forbidden: You do not have access to this resource.",
+    //   });
+    // }
 
     const project = await Project.findById(projectId);
 
@@ -437,4 +437,60 @@ export const streamProjectLogs = async (req: AuthRequest, res: Response) => {
     }
  }
 
+
+ export const redeployProject = async (req: AuthRequest, res: Response) => {
+  try {
+
+    const projectId = req.params.id;
+
+    console.log(projectId)
+
+    const project = await Project.findById(projectId);
+
+    
+    console.log(project, "redeploy action")
+    
+    const allowedTypes = ["express", "nest", "static", "next","react"];
+    
+    if (!project) {
+       res.status(404).json({
+        success: false,
+        message: "Project not found. Please provide a valid project ID.",
+      });
+    }
+
+    if (!allowedTypes.includes(project?.type as ProjectType)) {
+        res.status(400).json({
+          success: false,
+          message: `Project type '${project?.type}' does not support log streaming.`,
+        });
+    }
+
+    const scriptPath = "/home/dev-pilot/scripts/redeploy_app.sh";
+    const command = `sudo ${scriptPath} --project_name ${project?.name} --type ${project?.type}`;
+
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+
+    streamRemoteCommand(
+      command,
+      (chunk) => {
+        res.write(chunk);
+      },
+      (closeMessage) => {
+        res.write(closeMessage);
+        res.end();
+      },
+      (err) => {
+        res.write(`[error] ${err.message}\n`);
+        res.end();
+      }
+    );
+    }catch(error){
+         res.status(500).json({
+            success: false,
+            message: (error as Error).message,
+            data: "[Error]: Internal server error",
+          });
+    }
+};
 

@@ -6,7 +6,6 @@ import {
   getDeployments,
   getDeploymentById,
   updateDeployment,
-  redeployProject,
   deleteDeployment
 } from '../controllers/deployment.controller';
 
@@ -20,7 +19,6 @@ router.post('/', createDeployment);
 router.get('/', getDeployments);
 router.get('/:id', getDeploymentById);
 router.patch('/:id', updateDeployment);
-router.post('/:id/redeploy', redeployProject);
 router.delete('/:id', deleteDeployment);
 
 export default router;

@@ -80,6 +80,8 @@ export const createDeployment = async (req: AuthRequest, res: Response) => {
             try {
               const { name, repo, type, pkg, main_dir, envVars, run_script, typescript, port, build_script } = data;
 
+              const isServer = ["express", "nest", "next"]
+
               const project = {
                 name,
                 clone_url: repo,
@@ -93,7 +95,7 @@ export const createDeployment = async (req: AuthRequest, res: Response) => {
                 status: code === 0 ? "active" : "failed",
                 params: data,
                 username: user?.username,
-                url: `https://${data.name}.${DOMAIN}`,
+                url: isServer.includes(type)? `https://api.${data.name}.${DOMAIN}`: `https://${data.name}.${DOMAIN}` ,
                 command,
                 pkg
               };
@@ -106,7 +108,6 @@ export const createDeployment = async (req: AuthRequest, res: Response) => {
                 savedProject = await Project.create(project);
                 console.log("Created new project successfully");
               } else {
-                // Update existing project
                 savedProject = await Project.findOneAndUpdate(
                   { name: data.name },
                   project,
@@ -256,63 +257,7 @@ export const updateDeployment = async (req: AuthRequest, res: Response): Promise
   }
 };
 
-export const redeployProject = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized: User not authenticated' });
-      return;
-    }
 
-    const { id } = req.params;
-    const deployment = await Deployment.findOne({ _id: id, userId });
-
-    if (!deployment) {
-      res.status(404).json({ error: 'Deployment not found' });
-      return;
-    }
-
-    // Update status to redeploying
-    deployment.status = 'redeploying';
-    await deployment.save();
-
-    // Execute redeployment asynchronously
-    // sshManager.executeDeployment({
-    //   clone_url: deployment.clone_url,
-    //   project_name: deployment.project_name,
-    //   package_manager: deployment.package_manager,
-    //   entry_file: deployment.entry_file,
-    //   main_directory: deployment.main_directory,
-    //   build_script: deployment.build_script,
-    //   run_script: deployment.run_script,
-    //   envVars: deployment.envVars,
-    //   port: deployment.port
-    // })
-    //   .then(async () => {
-    //     await Deployment.findByIdAndUpdate(deployment._id, {
-    //       status: 'deployed',
-    //       last_deployed_at: new Date(),
-    //       error_message: undefined
-    //     });
-    //   })
-    //   .catch(async (error) => {
-    //     await Deployment.findByIdAndUpdate(deployment._id, {
-    //       status: 'failed',
-    //       error_message: error.message
-    //     });
-    //   });
-
-    res.status(200).json({
-      message: 'Redeployment initiated successfully',
-      deployment
-    });
-  } catch (error) {
-    res.status(500).json({ 
-      error: 'Failed to redeploy project',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-};
 
 export const deleteDeployment = async (req: AuthRequest, res: Response): Promise<void> => {
   try {

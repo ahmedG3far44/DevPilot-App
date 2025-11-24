@@ -317,7 +317,9 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ onActionClick }) => {
 
                       {/* Port Number */}
                       <TableCell className="font-mono text-sm">
-                        {project.port}
+                        {project.type === "express" || project.type === "nest"
+                          ? project.port
+                          : "N/A"}
                       </TableCell>
 
                       {/* Technology Indicators */}

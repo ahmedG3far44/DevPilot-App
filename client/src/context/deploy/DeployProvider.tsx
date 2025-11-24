@@ -80,7 +80,7 @@ const DeployProvider: FC<PropsWithChildren> = ({ children }) => {
       }
 
       if (projectId && redirectUrl) {
-        window.location.href = redirectUrl;
+        window.location.assign(redirectUrl);
       }
     } catch (err: any) {
       setError(err.message);

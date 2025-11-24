@@ -14,8 +14,8 @@ const LoginButton = ({
   const redirectUri = `${BASE_URL}/auth/github/callback`;
   return (
     <Button
-      variant={"default"}
-      className={`${className} w-full py-1 px-4 text-sm rounded-md shadow-sm text-center cursor-pointer hover:opacity-90 duration-300`}
+      variant={"outline"}
+      className={`${className} py-1 px-4 text-sm rounded-md shadow-sm text-center cursor-pointer hover:opacity-90 duration-300`}
       onClick={() =>
         window.location.assign(
           `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${redirectUri}`

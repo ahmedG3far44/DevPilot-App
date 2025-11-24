@@ -27,6 +27,7 @@ const ProjectsProvider: FC<PropsWithChildren> = ({ children }) => {
       });
       const results = await response.json();
       setProjectsList(results.data);
+      return results.data;
     } catch (err) {
       setError((err as Error).message);
       console.log(
@@ -183,6 +184,7 @@ const ProjectsProvider: FC<PropsWithChildren> = ({ children }) => {
       value={{
         projects,
         project,
+        getProjectsList,
         setLogs: () => {},
         logs,
         redeploying,

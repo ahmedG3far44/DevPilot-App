@@ -8,9 +8,11 @@ import ErrorMessage from "@/components/ui/error";
 const UserPage = () => {
   const { error, repos, loading } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
-  const filteredRepos = repos.filter((repo) =>
-    repo.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredRepos = repos
+    ? repos?.filter((repo) =>
+        repo.name.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : [];
 
   if (loading) return <Spinner size={"xl"} />;
 
@@ -36,15 +38,15 @@ const UserPage = () => {
         />
         {searchQuery && (
           <p className="mt-2 text-sm ">
-            Found {filteredRepos.length}{" "}
-            {filteredRepos.length === 1 ? "repository" : "repositories"}
+            Found {filteredRepos?.length}{" "}
+            {filteredRepos?.length === 1 ? "repository" : "repositories"}
           </p>
         )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
-        {filteredRepos.length > 0 ? (
-          filteredRepos.map((repo) => (
+        {filteredRepos?.length > 0 ? (
+          filteredRepos?.map((repo) => (
             <RepoCard
               key={repo.id}
               repo={repo}

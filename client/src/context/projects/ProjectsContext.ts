@@ -6,6 +6,7 @@ export interface ProjectContextType{
     project:ProjectData| null;
     logs:string[];
     setLogs:(log:string)=> void;
+    getProjectsList:()=> void;
     startServer:(projectId:string)=>Promise<void>
     redeploy:(projectId:string)=>Promise<void>
     stopServer:(projectId:string)=>Promise<void>
@@ -28,6 +29,7 @@ export const ProjectsContext = createContext<ProjectContextType>({
     project:null,
     logs:[],
     setLogs:()=>{},
+    getProjectsList:()=> Promise.resolve(),
     redeploy:()=> Promise.resolve(),
     startServer:()=>Promise.resolve(),
     stopServer:()=>Promise.resolve(),

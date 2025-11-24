@@ -56,7 +56,7 @@ export const Header = () => {
                     picture={user?.avatar_url as string}
                     name={user?.name as string}
                   />
-                  <div className="hidden lg:flex flex-row lg:flex-col gap-2 lg:gap-4 hover:flex">
+                  <div className="hidden lg:flex lg:flex-row flex-col gap-2 lg:gap-4 hover:flex">
                     <ModeToggle />
                     <LogoutButton />
                   </div>
@@ -88,3 +88,6 @@ export const User = ({ picture, name }: { picture: string; name: string }) => {
     </div>
   );
 };
+
+
+"mongodb+srv://ahmedjaafarbadri_db_user:V9hcVq4LCwPNEIJt@cluster0.qc54sol.mongodb.net/test?appName=Cluster0"

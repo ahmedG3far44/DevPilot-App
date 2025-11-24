@@ -66,10 +66,10 @@ export interface ProjectData {
   build_script: string;
   port: number | string;
   main_dir: string;
-  type: "static" | "server";
+  type: "next" | "express" | "nest" | "static" | "react";
   typescript: boolean;
   envVars: Record<string, string>;
-  status: "active" | "inactive" | "deploying" | "error";
+  status: "active" | "stopped" | "pending" | "failed";
   url?: string;
   username?: string;
   pkg?: string;
@@ -195,7 +195,11 @@ const ProjectMonitor: React.FC = () => {
   };
 
   const fetchLogs = async () => {
-    if (project?.type !== "server") return;
+    const allowedProjectTypes = ["express", "nest", "next"];
+    if (
+      allowedProjectTypes.includes(project?.type as "express" | "next" | "nest")
+    )
+      return;
 
     try {
       const response = await fetch(`${BASE_URL}/project/${projectId}/logs`, {
@@ -237,7 +241,11 @@ const ProjectMonitor: React.FC = () => {
   };
 
   const handleRestart = async () => {
-    if (project?.type !== "server") return;
+    const allowedProjectTypes = ["express", "nest", "next"];
+    if (
+      allowedProjectTypes.includes(project?.type as "express" | "next" | "nest")
+    )
+      return;
 
     try {
       setRestarting(true);
@@ -260,7 +268,11 @@ const ProjectMonitor: React.FC = () => {
   };
 
   const handleStop = async () => {
-    if (project?.type !== "server") return;
+    const allowedProjectTypes = ["express", "nest", "next"];
+    if (
+      allowedProjectTypes.includes(project?.type as "express" | "next" | "nest")
+    )
+      return;
 
     try {
       setStopping(true);
@@ -411,7 +423,12 @@ const ProjectMonitor: React.FC = () => {
       };
       setTrafficData((prev) => [...prev.slice(-9), newTraffic]);
 
-      if (project.type === "server") {
+      const allowedProjectTypes = ["express", "nest", "next"];
+      if (
+        allowedProjectTypes.includes(
+          project?.type as "express" | "next" | "nest"
+        )
+      ) {
         const messages = [
           "GET /api/health - 200 OK",
           "POST /api/data - 201 Created",
@@ -579,7 +596,7 @@ const ProjectMonitor: React.FC = () => {
             <Button
               variant={"outline"}
               onClick={handleRedeploy}
-              disabled={redeploying || project.status === "deploying"}
+              disabled={redeploying || project.status === "pending"}
               className="flex items-center gap-2 hover:opacity-65 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition"
             >
               {redeploying ? (
@@ -590,36 +607,38 @@ const ProjectMonitor: React.FC = () => {
               Redeploy
             </Button>
 
-            {project.type === "server" && (
-              <>
-                <Button
-                  onClick={handleRestart}
-                  disabled={restarting || project.status !== "active"}
-                  className="flex items-center gap-2 px-4 py-2  rounded-lg hover:opacity-65 duration-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                >
-                  {restarting ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    <Play size={16} />
-                  )}
-                  Restart
-                </Button>
+            {project.type === "express" ||
+              project.type === "nest" ||
+              (project.type === "next" && (
+                <>
+                  <Button
+                    onClick={handleRestart}
+                    disabled={restarting || project.status !== "active"}
+                    className="flex items-center gap-2 px-4 py-2  rounded-lg hover:opacity-65 duration-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  >
+                    {restarting ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <Play size={16} />
+                    )}
+                    Restart
+                  </Button>
 
-                <Button
-                  variant={"destructive"}
-                  onClick={handleStop}
-                  disabled={stopping || project.status === "inactive"}
-                  className="flex items-center gap-2 cursor-pointer hover:opacity-65 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                >
-                  {stopping ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    <Square size={16} />
-                  )}
-                  Stop
-                </Button>
-              </>
-            )}
+                  <Button
+                    variant={"destructive"}
+                    onClick={handleStop}
+                    disabled={stopping || project.status === "stopped"}
+                    className="flex items-center gap-2 cursor-pointer hover:opacity-65 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  >
+                    {stopping ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <Square size={16} />
+                    )}
+                    Stop
+                  </Button>
+                </>
+              ))}
 
             <Button
               onClick={() => setShowEnvModal(true)}
@@ -641,121 +660,123 @@ const ProjectMonitor: React.FC = () => {
           </div>
         </div>
 
-        {/* Metrics (only for server-type) */}
-        {project.type === "server" && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className=" rounded-lg shadow p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium ">Requests/min</span>
-                <TrendingUp className="text-green-500" size={20} />
+        {project.type === "express" ||
+          project.type === "nest" ||
+          (project.type === "next" && (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className=" rounded-lg shadow p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium ">Requests/min</span>
+                  <TrendingUp className="text-green-500" size={20} />
+                </div>
+                <div className="text-2xl font-bold ">
+                  {trafficData[trafficData.length - 1]?.requests || 0}
+                </div>
+                <div className="text-sm text-green-600 mt-1">
+                  ↑ 12% from last hour
+                </div>
               </div>
-              <div className="text-2xl font-bold ">
-                {trafficData[trafficData.length - 1]?.requests || 0}
-              </div>
-              <div className="text-sm text-green-600 mt-1">
-                ↑ 12% from last hour
-              </div>
-            </div>
 
-            <div className=" rounded-lg shadow p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium ">Avg Response</span>
-                <Activity className="text-orange-500" size={20} />
+              <div className=" rounded-lg shadow p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium ">Avg Response</span>
+                  <Activity className="text-orange-500" size={20} />
+                </div>
+                <div className="text-2xl font-bold ">
+                  {trafficData[trafficData.length - 1]?.responseTime || 0}ms
+                </div>
+                <div className="text-sm text-orange-600 mt-1">
+                  ↓ 8% from last hour
+                </div>
               </div>
-              <div className="text-2xl font-bold ">
-                {trafficData[trafficData.length - 1]?.responseTime || 0}ms
-              </div>
-              <div className="text-sm text-orange-600 mt-1">
-                ↓ 8% from last hour
-              </div>
-            </div>
 
-            <div className=" rounded-lg shadow p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium ">CPU Usage</span>
-                <Zap className="text-blue-500" size={20} />
-              </div>
-              <div className="text-2xl font-bold ">23.4%</div>
-              <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
-                <div
-                  className="bg-blue-500 h-2 rounded-full"
-                  style={{ width: "23.4%" }}
-                />
-              </div>
-            </div>
-
-            <div className=" rounded-lg shadow p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium ">Memory</span>
-                <Database className="text-purple-500" size={20} />
-              </div>
-              <div className="text-2xl font-bold ">456 MB</div>
-              <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
-                <div
-                  className="bg-purple-500 h-2 rounded-full"
-                  style={{ width: "44.5%" }}
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Traffic Charts (only for server-type) */}
-        {project.type === "server" && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className=" rounded-xl shadow-lg p-6">
-              <h2 className="text-lg font-bold  mb-4">Request Traffic</h2>
-              <ResponsiveContainer width="100%" height={200}>
-                <AreaChart data={trafficData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="time" stroke="#64748b" fontSize={12} />
-                  <YAxis stroke="#64748b" fontSize={12} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#1e293b",
-                      border: "none",
-                      borderRadius: "8px",
-                      color: "#fff",
-                    }}
+              <div className=" rounded-lg shadow p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium ">CPU Usage</span>
+                  <Zap className="text-blue-500" size={20} />
+                </div>
+                <div className="text-2xl font-bold ">23.4%</div>
+                <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-blue-500 h-2 rounded-full"
+                    style={{ width: "23.4%" }}
                   />
-                  <Area
-                    type="monotone"
-                    dataKey="requests"
-                    stroke="#3b82f6"
-                    fill="#93c5fd"
-                    strokeWidth={2}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
+                </div>
+              </div>
 
-            <div className=" rounded-xl shadow-lg p-6">
-              <h2 className="text-lg font-bold  mb-4">Response Time</h2>
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={trafficData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="time" stroke="#64748b" fontSize={12} />
-                  <YAxis stroke="#64748b" fontSize={12} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#1e293b",
-                      border: "none",
-                      borderRadius: "8px",
-                      color: "#fff",
-                    }}
+              <div className=" rounded-lg shadow p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium ">Memory</span>
+                  <Database className="text-purple-500" size={20} />
+                </div>
+                <div className="text-2xl font-bold ">456 MB</div>
+                <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-purple-500 h-2 rounded-full"
+                    style={{ width: "44.5%" }}
                   />
-                  <Line
-                    type="monotone"
-                    dataKey="responseTime"
-                    stroke="#f59e0b"
-                    strokeWidth={2}
-                    dot={{ fill: "#f59e0b", r: 4 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+                </div>
+              </div>
             </div>
-          </div>
-        )}
+          ))}
+
+        {project.type === "express" ||
+          project.type === "nest" ||
+          (project.type === "next" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className=" rounded-xl shadow-lg p-6">
+                <h2 className="text-lg font-bold  mb-4">Request Traffic</h2>
+                <ResponsiveContainer width="100%" height={200}>
+                  <AreaChart data={trafficData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="time" stroke="#64748b" fontSize={12} />
+                    <YAxis stroke="#64748b" fontSize={12} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#1e293b",
+                        border: "none",
+                        borderRadius: "8px",
+                        color: "#fff",
+                      }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="requests"
+                      stroke="#3b82f6"
+                      fill="#93c5fd"
+                      strokeWidth={2}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className=" rounded-xl shadow-lg p-6">
+                <h2 className="text-lg font-bold  mb-4">Response Time</h2>
+                <ResponsiveContainer width="100%" height={200}>
+                  <LineChart data={trafficData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="time" stroke="#64748b" fontSize={12} />
+                    <YAxis stroke="#64748b" fontSize={12} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#1e293b",
+                        border: "none",
+                        borderRadius: "8px",
+                        color: "#fff",
+                      }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="responseTime"
+                      stroke="#f59e0b"
+                      strokeWidth={2}
+                      dot={{ fill: "#f59e0b", r: 4 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          ))}
 
         {/* Project Info & Environment Variables */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-card border border-muted rounded-md">
@@ -872,49 +893,51 @@ const ProjectMonitor: React.FC = () => {
           </div>
         </div>
 
-        {project.type === "server" && (
-          <div className=" rounded-xl shadow-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Terminal className="" size={20} />
-                <h2 className="text-lg font-bold ">Live Logs</h2>
-              </div>
-              <div className="flex items-center gap-2 text-sm ">
-                <Activity
-                  size={16}
-                  className={autoRefresh ? "text-green-500" : ""}
-                />
-                <span>{autoRefresh ? "Streaming" : "Paused"}</span>
-              </div>
-            </div>
-            <div className="bg-gray-900 rounded-lg p-4 h-96 overflow-y-auto font-mono text-sm">
-              {logs.length === 0 ? (
-                <div className="text-center py-8 ">
-                  <Terminal size={32} className="mx-auto mb-2 opacity-50" />
-                  <p>No logs available</p>
+        {project.type === "express" ||
+          project.type === "nest" ||
+          (project.type === "next" && (
+            <div className=" rounded-xl shadow-lg p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Terminal className="" size={20} />
+                  <h2 className="text-lg font-bold ">Live Logs</h2>
                 </div>
-              ) : (
-                logs.map((log) => (
-                  <div
-                    key={log.id}
-                    className="flex gap-3 mb-2 hover:bg-gray-800 p-2 rounded transition"
-                  >
-                    <span className=" shrink-0">{log.timestamp}</span>
-                    <span
-                      className={`px-2 py-0.5 rounded text-xs font-semibold shrink-0 ${getLogLevelStyle(
-                        log.level
-                      )}`}
-                    >
-                      {log.level.toUpperCase()}
-                    </span>
-                    <span className="">{log.message}</span>
+                <div className="flex items-center gap-2 text-sm ">
+                  <Activity
+                    size={16}
+                    className={autoRefresh ? "text-green-500" : ""}
+                  />
+                  <span>{autoRefresh ? "Streaming" : "Paused"}</span>
+                </div>
+              </div>
+              <div className="bg-gray-900 rounded-lg p-4 h-96 overflow-y-auto font-mono text-sm">
+                {logs.length === 0 ? (
+                  <div className="text-center py-8 ">
+                    <Terminal size={32} className="mx-auto mb-2 opacity-50" />
+                    <p>No logs available</p>
                   </div>
-                ))
-              )}
-              <div ref={logsEndRef} />
+                ) : (
+                  logs.map((log) => (
+                    <div
+                      key={log.id}
+                      className="flex gap-3 mb-2 hover:bg-gray-800 p-2 rounded transition"
+                    >
+                      <span className=" shrink-0">{log.timestamp}</span>
+                      <span
+                        className={`px-2 py-0.5 rounded text-xs font-semibold shrink-0 ${getLogLevelStyle(
+                          log.level
+                        )}`}
+                      >
+                        {log.level.toUpperCase()}
+                      </span>
+                      <span className="">{log.message}</span>
+                    </div>
+                  ))
+                )}
+                <div ref={logsEndRef} />
+              </div>
             </div>
-          </div>
-        )}
+          ))}
 
         {/* Environment Variable Modal */}
         {showEnvModal && (
